@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中药材溯源平台 - 测试入口</title>
+    <link rel="stylesheet" href="https://unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-size: 32px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .section h2 {
+            font-size: 20px;
+            color: #34495e;
+            margin-bottom: 20px;
+            border-left: 4px solid #2BA471;
+            padding-left: 14px;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        .test-item {
+            background: linear-gradient(135deg, #667eea 0%, #2BA471 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        .test-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(43, 164, 113, 0.3);
+        }
+        .test-item h3 {
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        .test-item p {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        .test-item.warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .test-item.success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .user-list {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .user-list h4 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: white;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        .user-item .name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .user-item .info {
+            color: #7f8c8d;
+            font-size: 13px;
+        }
+        .btn-copy {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌿 中药材溯源平台 - 测试入口</h1>
+            <p>测试环境已就绪，本地服务器运行在 http://localhost:8000</p>
+        </div>
+
+        <div class="section">
+            <h2>📱 快速测试</h2>
+            <div class="test-grid">
+                <a class="test-item" href="/" target="_blank">
+                    <h3>🏠 首页</h3>
+                    <p>访问项目首页</p>
+                </a>
+                <a class="test-item" href="/admin/login.html" target="_blank">
+                    <h3>🔐 管理后台登录</h3>
+                    <p>访问登录页面</p>
+                </a>
+                <a class="test-item success" href="/admin/demo.html" target="_blank">
+                    <h3>📊 管理后台演示</h3>
+                    <p>管理仪表盘 (演示版)</p>
+                </a>
+                <a class="test-item warning" href="/consumer/verify.html" target="_blank">
+                    <h3>📱 消费者验证</h3>
+                    <p>扫码验证界面</p>
+                </a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>👤 测试账号</h2>
+            <div class="user-list">
+                <h4>以下是已预设的测试账号（数据库Seeder中定义）：</h4>
+                <div class="user-item">
+                    <div>
+                        <div class="name">系统管理员</div>
+                        <div class="info">企业: tcm-trace | 用户: admin | 密码: admin123</div>
+                    </div>
+                    <button class="btn-copy" onclick="copyText('admin/admin123')">复制账号</button>
+                </div>
+                <div class="user-item">
+                    <div>
+                        <div class="name">张经理</div>
+                        <div class="info">企业: tcm-trace | 用户: manager | 密码: manager123</div>
+                    </div>
+                    <button class="btn-copy" onclick="copyText('manager/manager123')">复制账号</button>
+                </div>
+                <div class="user-item">
+                    <div>
+                        <div class="name">同仁堂管理员</div>
+                        <div class="info">企业: tongrentang | 用户: trt_admin | 密码: trt123</div>
+                    </div>
+                    <button class="btn-copy" onclick="copyText('trt_admin/trt123')">复制账号</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>✅ 功能测试清单</h2>
+            <ul class="layui-timeline">
+                <li class="layui-timeline-item">
+                    <i class="layui-icon layui-timeline-axis layui-icon-circle-dot" style="color: #2BA471;"></i>
+                    <div class="layui-timeline-content layui-text">
+                        <h3 class="layui-timeline-title">项目初始化</h3>
+                        <p>CodeIgniter 4框架配置完成，数据库结构创建完成</p>
+                    </div>
+                </li>
+                <li class="layui-timeline-item">
+                    <i class="layui-icon layui-timeline-axis layui-icon-circle-dot" style="color: #667eea;"></i>
+                    <div class="layui-timeline-content layui-text">
+                        <h3 class="layui-timeline-title">管理后台</h3>
+                        <p>登录界面、仪表板、产品管理、批次管理、二维码管理</p>
+                    </div>
+                </li>
+                <li class="layui-timeline-item">
+                    <i class="layui-icon layui-timeline-axis layui-icon-circle-dot" style="color: #f39c12;"></i>
+                    <div class="layui-timeline-content layui-text">
+                        <h3 class="layui-timeline-title">消费者端</h3>
+                        <p>扫码验证页面、产品信息展示</p>
+                    </div>
+                </li>
+                <li class="layui-timeline-item">
+                    <i class="layui-icon layui-timeline-axis layui-icon-circle-dot" style="color: #27ae60;"></i>
+                    <div class="layui-timeline-content layui-text">
+                        <h3 class="layui-timeline-title">数据库</h3>
+                        <p>完整的Seeder文件已创建，包含租户、用户、产品、批次等</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script>
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                layui.layer.msg('复制成功！');
+            });
+        }
+
+        layui.use('layer', function(){
+            var layer = layui.layer;
+            
+            layer.msg('欢迎使用测试入口！', {
+                icon: 1,
+                time: 2000
+            });
+        });
+    </script>
+</body>
+</html>
