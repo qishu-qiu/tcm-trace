@@ -1,119 +1,169 @@
-# 中药材溯源SaaS平台部署指南
+# 中药材溯源SaaS平台部署指南 v2.0
+
+> 适用环境：CentOS + Apache/Nginx + PHP 8.2 + MySQL 5.7
+
+---
+
+## 目录
+
+1. [环境要求](#环境要求)
+2. [快速开始](#快速开始)
+3. [详细部署步骤](#详细部署步骤)
+4. [配置文件说明](#配置文件说明)
+5. [安全加固](#安全加固)
+6. [故障排除](#故障排除)
+
+---
 
 ## 环境要求
 
-- **操作系统**: CentOS 7/8/9
-- **Web服务器**: Apache 2.4+ 或 Nginx 1.20+
-- **PHP版本**: 8.2
-- **数据库**: MySQL 5.7+ 或 MariaDB 10.2+
-- **PHP扩展**: pdo_mysql, json, mbstring, gd, fileinfo, openssl
+| 组件 | 版本要求 | 说明 |
+|------|---------|------|
+| 操作系统 | CentOS 7/8/9 | 推荐 CentOS 7 |
+| Web服务器 | Apache 2.4+ 或 Nginx 1.20+ | 二选一 |
+| PHP版本 | 8.2 | 必须 |
+| 数据库 | MySQL 5.7+ 或 MariaDB 10.2+ | **已适配MySQL 5.7.25** |
+| PHP扩展 | pdo_mysql, json, mbstring, gd, fileinfo, openssl | 必须 |
 
----
+### MySQL 5.7 兼容性说明
 
-## MySQL 5.7 兼容性说明
+本系统已完全适配 MySQL 5.7，关键兼容点：
 
-本系统完全兼容 MySQL 5.7，主要兼容性说明：
-
-| 功能 | MySQL 5.7 版本要求 | 说明 |
+| 功能 | MySQL 5.7 版本要求 | 状态 |
 |------|-------------------|------|
 | utf8mb4 字符集 | 5.5.3+ | ✅ 完全支持 |
-| JSON 类型 | 5.7.8+ | ✅ 用于溯源记录详情 |
-| ENUM 类型 | 完全支持 | ✅ 用于状态/角色等字段 |
-| DECIMAL 类型 | 完全支持 | ✅ 用于数量/面积等字段 |
-| CURRENT_TIMESTAMP | 完全支持 | ✅ 用于时间戳字段 |
-
-**注意事项**：
-- 如果使用 `utf8mb4` 字符集，建议 MySQL 5.7.10+ 版本
-- 如遇 JSON 类型错误，可将 JSON 字段改为 TEXT 类型
-- 已提供兼容SQL脚本：`database/mysql57_schema.sql`
+| JSON 字段 | 5.7.8+ | ⚠️ 使用TEXT替代 |
+| ENUM 类型 | 完全支持 | ✅ |
+| DECIMAL 类型 | 完全支持 | ✅ |
+| CURRENT_TIMESTAMP | 完全支持 | ✅ |
 
 ---
 
-## 部署步骤
+## 快速开始
 
-### 步骤1：上传代码到虚拟主机
+### 方式一：使用迁移命令（推荐）
 
-将项目代码上传到虚拟主机的web目录，例如：
+```bash
+# 1. 上传代码到服务器
+cd /var/www/tcm-trace
+
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env 文件，填写数据库信息
+
+# 3. 执行数据库迁移
+php spark migrate
+
+# 4. 设置目录权限
+chmod -R 755 writable/
+chown -R www-data:www-data writable/
 ```
-/var/www/tcm-trace/
+
+### 方式二：手动导入SQL（100%兼容）
+
+```bash
+# 1. 创建数据库
+mysql -u root -p
+CREATE DATABASE tcm_trace CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+EXIT;
+
+# 2. 导入SQL脚本
+mysql -u root -p tcm_trace < database/mysql57_schema.sql
+
+# 3. 配置环境变量
+cp .env.example .env
+# 编辑 .env 文件
 ```
 
-**目录结构说明：**
-- `public/` - 网站根目录，配置虚拟主机指向此目录
-- `app/` - 应用核心代码
-- `vendor/` - Composer依赖
-- `writable/` - 可写目录（日志、缓存、上传文件）
-
 ---
 
-### 步骤2：设置PHP版本为8.2
+## 详细部署步骤
 
-在虚拟主机控制面板中切换PHP版本为8.2：
+### 步骤1：上传代码
 
-**cPanel用户：**
-1. 登录cPanel面板
-2. 找到"选择PHP版本"或"MultiPHP Manager"
-3. 选择PHP 8.2版本
-4. 点击"应用"保存
+将项目代码上传到服务器web目录：
 
-**DirectAdmin用户：**
-1. 登录DirectAdmin面板
-2. 找到"PHP版本选择"
-3. 选择PHP 8.2
-4. 保存设置
+```bash
+# 推荐目录结构
+/var/www/tcm-trace/          # 项目根目录
+├── app/                     # 应用代码
+├── public/                  # 网站根目录（虚拟主机指向此处）
+├── vendor/                  # Composer依赖
+├── writable/                # 可写目录
+└── database/                # 数据库脚本
+```
 
----
+### 步骤2：设置PHP版本
 
-### 步骤3：确保PHP扩展已启用
+**cPanel 用户：**
+1. 登录 cPanel → 选择PHP版本
+2. 切换到 PHP 8.2
+3. 点击"设为当前"
 
-确保以下PHP扩展已启用：
+**DirectAdmin 用户：**
+1. 登录 DirectAdmin → PHP版本选择
+2. 选择 PHP 8.2
 
-| 扩展名称 | 说明 |
-|---------|------|
-| pdo_mysql | MySQL数据库驱动 |
-| json | JSON处理 |
-| mbstring | 多字节字符串处理 |
-| gd | 图片处理（二维码生成） |
-| fileinfo | 文件类型检测 |
-| openssl | 加密功能 |
+### 步骤3：启用PHP扩展
 
-**在cPanel中启用扩展：**
-1. 进入"选择PHP版本"
-2. 点击"扩展"选项卡
-3. 勾选所需扩展
-4. 保存设置
+在PHP版本设置页面启用以下扩展：
+- `pdo_mysql` - MySQL数据库驱动
+- `json` - JSON处理
+- `mbstring` - 中文处理
+- `gd` - 图片处理（二维码生成）
+- `fileinfo` - 文件类型检测
+- `openssl` - 加密功能
 
----
+### 步骤4：创建数据库
 
-### 步骤4：创建MySQL数据库并导入迁移
+**通过phpMyAdmin：**
+1. 登录 phpMyAdmin
+2. 点击"新建数据库"
+3. 数据库名：`tcm_trace`
+4. 排序规则：`utf8mb4_unicode_ci`
 
-1. **创建数据库和用户**：
-   - 数据库名：`tcm_trace`
-   - 用户名：`your_db_username`
-   - 字符集：`utf8mb4`
+**通过命令行：**
+```bash
+mysql -u root -p
+CREATE DATABASE tcm_trace CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'tcm_user'@'localhost' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON tcm_trace.* TO 'tcm_user'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
 
-2. **方式一：使用迁移命令**（推荐 MySQL 5.7.8+）：
+### 步骤5：导入数据库
+
+**方式A - 使用迁移命令：**
 ```bash
 cd /var/www/tcm-trace
 php spark migrate
 ```
 
-3. **方式二：手动执行SQL**（如果JSON类型不支持）：
-   - 直接导入 `database/mysql57_schema.sql` 文件
-   - 如果MySQL版本低于5.7.8，需要将JSON字段改为TEXT类型
+**方式B - 手动导入SQL：**
+```bash
+cd /var/www/tcm-trace
+mysql -u tcm_user -p tcm_trace < database/mysql57_schema.sql
+```
 
----
+### 步骤6：配置 .env 文件
 
-### 步骤5：配置 .env 文件
+```bash
+cd /var/www/tcm-trace
+cp env .env  # 如果没有.env文件
+```
 
-复制并编辑 `.env` 文件，配置数据库连接和JWT密钥：
+编辑 `.env` 文件：
 
 ```env
+# 生产环境
 CI_ENVIRONMENT = production
 
+# 基础URL（修改为你的域名）
 app.baseURL = 'https://your-domain.com/'
 app.indexPage = ''
 
+# 数据库配置
 database.default.hostname = localhost
 database.default.database = tcm_trace
 database.default.username = your_db_username
@@ -121,11 +171,21 @@ database.default.password = your_db_password
 database.default.DBDriver = MySQLi
 database.default.port = 3306
 
-jwt.secret = '生成一个随机的长密钥'
+# JWT配置（生成随机密钥）
+jwt.secret = 'your-32-character-random-secret-key'
 jwt.expiresIn = 604800
 
+# 上传配置
 uploads.path = 'uploads/'
 qrcode.path = 'uploads/qrcodes/'
+
+# 日志配置
+log.threshold = 1
+log.path = 'writable/logs/'
+
+# 安全配置
+security.csrfProtection = 'cookie'
+security.tokenRandomize = true
 ```
 
 **生成JWT密钥：**
@@ -133,146 +193,200 @@ qrcode.path = 'uploads/qrcodes/'
 openssl rand -hex 32
 ```
 
----
-
-### 步骤6：设置目录权限
-
-设置 `writable/` 目录可写权限：
+### 步骤7：设置目录权限
 
 ```bash
 cd /var/www/tcm-trace
+
+# 设置writable目录
 chmod -R 755 writable/
-chown -R www-data:www-data writable/
+chmod -R 777 writable/logs/
+chmod -R 777 writable/cache/
+chmod -R 777 writable/session/
+chmod -R 777 writable/uploads/
+
+# 创建二维码目录
+mkdir -p public/uploads/qrcodes
+chmod -R 777 public/uploads/qrcodes
+
+# 设置所有者（Apache）
+chown -R apache:apache writable/
+chown -R apache:apache public/uploads/
 ```
 
-**目录权限说明：**
-- `writable/logs/` - 日志目录
-- `writable/cache/` - 缓存目录
-- `writable/session/` - 会话目录
-- `public/uploads/` - 上传文件目录
+### 步骤8：配置Web服务器
 
----
+#### Apache (.htaccess)
 
-### 步骤7：测试登录
+项目已包含 `public/.htaccess`，主要配置：
 
-访问管理后台登录页面：
+```apache
+# URL重写
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php/$1 [L]
+
+# 静态资源缓存
+ExpiresByType image/jpeg "access plus 1 week"
+ExpiresByType image/png "access plus 1 week"
+
+# 二维码缓存
+Header set Cache-Control "max-age=604800, public" "expr=%{REQUEST_URI} =~ m#^/uploads/qrcodes/#"
+
+# Gzip压缩
+AddOutputFilterByType DEFLATE text/plain text/html text/css application/javascript
+
+# 安全头
+Header set X-Frame-Options "SAMEORIGIN"
+Header set X-Content-Type-Options "nosniff"
+
+# 禁止访问敏感文件
+<FilesMatch "\.(env|log)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
 ```
-https://your-domain.com/admin/login.html
+
+#### Nginx 配置参考
+
+参考项目中的 `nginx.conf.example` 文件：
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    root /var/www/tcm-trace/public;
+    index index.php;
+
+    # Gzip
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json;
+
+    # 静态资源缓存
+    location ~* \.(jpg|png|gif|css|js)$ {
+        expires 1w;
+        add_header Cache-Control "public, max-age=604800";
+    }
+
+    # 二维码缓存
+    location ~* ^/uploads/qrcodes/ {
+        expires 1w;
+        add_header Cache-Control "public, max-age=604800";
+    }
+
+    # PHP处理
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    # 禁止访问敏感目录
+    location ~ /\. { deny all; }
+    location ~* (app|vendor|writable)/ { deny all; }
+}
 ```
 
-默认管理员账号（首次部署后需创建）：
-- 用户名：admin
-- 密码：需通过数据库初始化或注册接口创建
+### 步骤9：配置Cron任务
 
----
-
-### 步骤8：配置Cron任务
-
-设置日志清理Cron任务，每天凌晨执行：
+设置日志清理任务（每天凌晨执行）：
 
 ```bash
+# 编辑crontab
+crontab -e
+
+# 添加以下行
 0 0 * * * /usr/bin/php /var/www/tcm-trace/spark clean:logs >> /var/log/tcm-trace-cron.log 2>&1
 ```
 
-**添加Cron任务：**
-```bash
-crontab -e
-```
-然后添加上述行
+### 步骤10：配置SSL证书
 
----
-
-### 步骤9：配置SSL证书（HTTPS）
-
-#### 使用Let's Encrypt免费证书：
+**使用Let's Encrypt（推荐）：**
 
 ```bash
 # 安装Certbot
 yum install certbot python3-certbot-nginx -y
 
-# 获取证书（Nginx）
+# 获取证书
 certbot --nginx -d your-domain.com
 
-# 自动续期测试
+# 自动续期
 certbot renew --dry-run
-```
-
-#### 手动配置SSL：
-
-将SSL证书文件上传到服务器：
-- 证书文件：`/etc/ssl/certs/your-domain.crt`
-- 私钥文件：`/etc/ssl/private/your-domain.key`
-
----
-
-## 安全加固
-
-### 1. 禁止PHP错误输出
-
-在 `.env` 中确保：
-```env
-CI_ENVIRONMENT = production
-```
-
-### 2. 保护敏感文件
-
-`.htaccess` 和 `nginx.conf` 已配置禁止访问：
-- `.env` - 环境配置文件
-- `writable/` - 可写目录
-- `app/` - 应用代码
-- `vendor/` - 依赖目录
-
-### 3. 上传文件类型限制
-
-系统仅允许上传以下文件类型：
-- jpg, jpeg, png, gif, pdf
-
-上传文件大小限制：5MB
-
-### 4. SQL注入防护
-
-- 使用CodeIgniter Query Builder参数绑定
-- 禁止直接拼接SQL语句
-
-### 5. XSS防护
-
-- 输出时使用 `htmlspecialchars()` 转义
-- 使用CodeIgniter的安全类处理用户输入
-
-### 6. CSRF保护
-
-CodeIgniter内置CSRF保护已启用：
-```env
-security.csrfProtection = 'cookie'
-security.tokenRandomize = true
 ```
 
 ---
 
 ## 配置文件说明
 
-### Apache配置 (.htaccess)
+### 核心配置文件
 
-路径：`public/.htaccess`
+| 文件路径 | 说明 | 必需配置 |
+|---------|------|---------|
+| `.env` | 环境变量 | ✅ 数据库、JWT密钥 |
+| `public/.htaccess` | Apache配置 | 一般无需修改 |
+| `nginx.conf.example` | Nginx配置参考 | 根据服务器调整 |
+| `database/mysql57_schema.sql` | 数据库SQL脚本 | 手动部署时使用 |
 
-包含以下配置：
-- URL重写规则（所有请求指向index.php）
-- 静态资源直接访问（不经过PHP）
-- 二维码图片缓存头（Cache-Control: max-age=604800）
-- Gzip压缩（mod_deflate）
-- 安全头（X-Frame-Options, X-Content-Type-Options）
-- 禁止访问敏感文件
+### 数据库迁移文件
 
-### Nginx配置
+| 文件 | 说明 |
+|------|------|
+| `CreateTenants.php` | 租户表 |
+| `CreateUsers.php` | 用户表 |
+| `CreateProducts.php` | 产品表 |
+| `CreateBatches.php` | 批次表 |
+| `CreateTraceRecords.php` | 溯源记录表 |
+| `CreateQrcodes.php` | 二维码表 |
+| `CreateScanLogs.php` | 扫码日志表 |
+| `CreateAuditLogs.php` | 审计日志表 |
 
-路径：`nginx.conf.example`
+---
 
-包含以下配置：
-- HTTP重定向到HTTPS
-- 反向代理到PHP-FPM
-- 静态资源缓存
-- Gzip压缩
-- SSL配置
+## 安全加固
+
+### 1. 生产环境配置
+
+```env
+CI_ENVIRONMENT = production
+```
+
+这会自动：
+- 关闭PHP错误显示
+- 启用CSRF保护
+- 启用安全头
+
+### 2. 文件访问控制
+
+`.htaccess` 已配置禁止直接访问：
+- `.env` - 环境配置文件
+- `writable/` - 可写目录
+- `app/` - 应用代码
+- `vendor/` - Composer依赖
+
+### 3. 上传安全
+
+- 文件类型白名单：`jpg`, `jpeg`, `png`, `gif`, `pdf`
+- 文件大小限制：5MB
+- 文件名随机化
+
+### 4. SQL注入防护
+
+所有数据库操作使用 CodeIgniter Query Builder，自动转义。
+
+### 5. XSS防护
+
+所有输出使用 `htmlspecialchars()` 转义。
+
+### 6. CSRF保护
+
+CodeIgniter内置CSRF Token保护已启用。
+
+### 7. JWT安全
+
+- Token有效期：7天
+- 密钥长度：32字符以上
+- 使用HS256算法
 
 ---
 
@@ -280,26 +394,71 @@ security.tokenRandomize = true
 
 ### 常见问题
 
-1. **页面显示空白**
-   - 检查PHP版本是否正确
-   - 检查 `writable/logs/` 目录权限
-   - 查看PHP错误日志
+#### 1. 页面空白或500错误
 
-2. **数据库连接失败**
-   - 检查 `.env` 数据库配置
-   - 确认数据库用户权限
-   - 检查数据库服务是否运行
+```bash
+# 检查日志
+tail -f writable/logs/log-$(date +%Y-%m-%d).log
 
-3. **二维码无法生成**
-   - 确认GD扩展已启用
-   - 检查 `public/uploads/qrcodes/` 目录权限
+# 检查PHP错误
+php -i | grep error_log
+```
 
-4. **404错误**
-   - 确认URL重写规则已配置
-   - 检查Apache `mod_rewrite` 是否已启用
+#### 2. 数据库连接失败
+
+- 检查 `.env` 数据库配置
+- 确认数据库服务运行：`systemctl status mysqld`
+- 测试连接：`mysql -u username -p database`
+
+#### 3. 二维码生成失败
+
+```bash
+# 检查GD扩展
+php -m | grep gd
+
+# 检查目录权限
+ls -la public/uploads/qrcodes/
+```
+
+#### 4. 404错误
+
+- 确认Apache `mod_rewrite` 已启用
+- 确认 `.htaccess` 文件存在
+- 检查虚拟主机配置 `AllowOverride All`
+
+#### 5. 权限问题
+
+```bash
+# 重置权限
+chown -R apache:apache /var/www/tcm-trace
+chmod -R 755 /var/www/tcm-trace
+chmod -R 777 /var/www/tcm-trace/writable
+chmod -R 777 /var/www/tcm-trace/public/uploads
+```
+
+---
+
+## 访问地址
+
+| 页面 | URL |
+|------|-----|
+| 管理后台登录 | `https://your-domain.com/admin/login.html` |
+| API基础路径 | `https://your-domain.com/api/` |
+| 消费者验证页 | `https://your-domain.com/scan/{qr_serial}` |
+
+### 默认账号
+
+首次部署后，通过API注册管理员账号，或在数据库中手动创建。
 
 ---
 
 ## 技术支持
 
-如有部署问题，请联系技术支持团队。
+- GitHub仓库：https://github.com/qishu-qiu/tcm-trace
+- 问题反馈：https://github.com/qishu-qiu/tcm-trace/issues
+
+---
+
+**版本**: v2.0
+**更新日期**: 2026-04-30
+**兼容MySQL版本**: 5.7+
