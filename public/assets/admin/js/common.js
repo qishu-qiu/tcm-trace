@@ -1,31 +1,25 @@
 // 认证相关工具函数
 const auth = {
-    // 存储Token
     setToken(token) {
         localStorage.setItem('tcm_admin_token', token);
     },
-    // 获取Token
     getToken() {
         return localStorage.getItem('tcm_admin_token');
     },
-    // 删除Token
     removeToken() {
         localStorage.removeItem('tcm_admin_token');
     },
-    // 存储用户信息
-    setUserInfo(userInfo) {
-        localStorage.setItem('tcm_admin_userinfo', JSON.stringify(userInfo));
+    setUserInfo(user) {
+        localStorage.setItem('tcm_admin_user', JSON.stringify(user));
     },
-    // 获取用户信息
     getUserInfo() {
-        const data = localStorage.getItem('tcm_admin_userinfo');
-        return data ? JSON.parse(data) : null;
+        const data = localStorage.getItem('tcm_admin_user');
+        return JSON.parse(data || 'null');
     },
-    // 删除用户信息
-    removeUserInfo() {
-        localStorage.removeItem('tcm_admin_userinfo');
+    clear() {
+        this.removeToken();
+        this.removeUserInfo();
     },
-    // 清理全部
     clearAll() {
         this.removeToken();
         this.removeUserInfo();

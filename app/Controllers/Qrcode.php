@@ -225,16 +225,4 @@ class Qrcode extends BaseController
             ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
             ->setBody(file_get_contents($filepath));
     }
-
-    protected function getCurrentUser(): array
-    {
-        $db = \Config\Database::connect();
-        $user = $db->table('users')
-            ->select('real_name, username')
-            ->where('id', $this->userId)
-            ->get()
-            ->getRowArray();
-        
-        return $user ?: ['realName' => null, 'username' => null];
-    }
 }

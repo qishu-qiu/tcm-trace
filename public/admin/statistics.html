@@ -31,20 +31,20 @@
     <div class="layui-card">
         <div class="stat-cards">
             <div class="stat-card blue">
-                <h3 id="statTotalScans">0</h3>
-                <p>累计扫码</p>
+                <h3 id="statTotalScans">-</h3>
+                <p>产品总数</p>
             </div>
             <div class="stat-card green">
-                <h3 id="statTodayScans">0</h3>
-                <p>今日扫码</p>
+                <h3 id="statTodayScans">-</h3>
+                <p>批次总数</p>
             </div>
             <div class="stat-card cyan">
-                <h3 id="statUniqueProducts">0</h3>
-                <p>溯源产品</p>
+                <h3 id="statUniqueProducts">-</h3>
+                <p>二维码总数</p>
             </div>
             <div class="stat-card pink">
-                <h3 id="statUniqueQrcodes">0</h3>
-                <p>使用二维码</p>
+                <h3 id="statUniqueQrcodes">-</h3>
+                <p>本月扫码</p>
             </div>
         </div>
     </div>
@@ -115,16 +115,13 @@
             // 加载统计数据
             async function loadStats() {
                 try {
-                    const qrcodeRes = await api.get('/qrcodes');
-                    const totalQrcodes = qrcodeRes?.data?.total || 0;
-                    
-                    const productRes = await api.get('/products');
-                    const totalProducts = productRes?.data?.total || 0;
-                    
-                    document.getElementById('statTotalScans').textContent = Math.floor(Math.random() * 5000 + 1000);
-                    document.getElementById('statTodayScans').textContent = Math.floor(Math.random() * 100 + 50);
-                    document.getElementById('statUniqueProducts').textContent = totalProducts;
-                    document.getElementById('statUniqueQrcodes').textContent = totalQrcodes;
+                    const res = await api.get('/statistics');
+                    if (res && res.data) {
+                        document.getElementById('statTotalScans').textContent = res.data.totalProducts ?? 0;
+                        document.getElementById('statTodayScans').textContent = res.data.totalBatches ?? 0;
+                        document.getElementById('statUniqueProducts').textContent = res.data.totalQrcodes ?? 0;
+                        document.getElementById('statUniqueQrcodes').textContent = res.data.monthScans ?? 0;
+                    }
                 } catch (error) {
                     console.error('加载统计失败', error);
                 }
@@ -152,124 +149,115 @@
             }
             
             // 渲染趋势图表
-            function renderTrendChart(range) {
-                let days = 7;
-                let dateFormat = 'MM-DD';
+            async function renderTrendChart(range) {
+                let period = 'day';
                 if (range === 'month') {
-                    days = 30;
-                    dateFormat = 'MM-DD';
+                    period = 'day';
                 } else if (range === 'year') {
-                    days = 12;
-                    dateFormat = 'YYYY-MM';
+                    period = 'month';
                 }
-                
-                const dates = [];
-                const data = [];
-                const today = new Date();
-                
-                for (let i = days - 1; i >= 0; i--) {
-                    const d = new Date(today);
-                    if (range === 'year') {
-                        d.setMonth(today.getMonth() - i);
-                        dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-                    } else {
-                        d.setDate(today.getDate() - i);
-                        dates.push(`${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-                    }
-                    data.push(Math.floor(Math.random() * 300 + 50));
+
+                try {
+                    const res = await api.get('/statistics/scan', { period: period });
+                    const dataList = res?.data || [];
+
+                    const dates = dataList.map(item => item.date);
+                    const data = dataList.map(item => item.count);
+
+                    const option = {
+                        tooltip: { trigger: 'axis' },
+                        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                        xAxis: { type: 'category', boundaryGap: false, data: dates },
+                        yAxis: { type: 'value' },
+                        series: [{
+                            name: '扫码次数',
+                            type: 'line',
+                            smooth: true,
+                            data: data,
+                            areaStyle: {
+                                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: 'rgba(102, 126, 234, 0.5)' },
+                                    { offset: 1, color: 'rgba(43, 164, 113, 0.2)' }
+                                ])
+                            },
+                            lineStyle: {
+                                width: 3,
+                                color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                                    { offset: 0, color: '#667eea' },
+                                    { offset: 1, color: '#2BA471' }
+                                ])
+                            },
+                            itemStyle: { color: '#2BA471' }
+                        }]
+                    };
+
+                    trendChartInstance.setOption(option);
+                } catch (error) {
+                    console.error('加载趋势数据失败', error);
                 }
-                
-                const option = {
-                    tooltip: { trigger: 'axis' },
-                    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-                    xAxis: { type: 'category', boundaryGap: false, data: dates },
-                    yAxis: { type: 'value' },
-                    series: [{
-                        name: '扫码次数',
-                        type: 'line',
-                        smooth: true,
-                        data: data,
-                        areaStyle: {
-                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                                { offset: 0, color: 'rgba(102, 126, 234, 0.5)' },
-                                { offset: 1, color: 'rgba(43, 164, 113, 0.2)' }
-                            ])
-                        },
-                        lineStyle: {
-                            width: 3,
-                            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-                                { offset: 0, color: '#667eea' },
-                                { offset: 1, color: '#2BA471' }
-                            ])
-                        },
-                        itemStyle: { color: '#2BA471' }
-                    }]
-                };
-                
-                trendChartInstance.setOption(option);
             }
             
             // 渲染排行图表
             async function renderRankingChart() {
-                const products = ['黄芪', '当归', '枸杞', '党参', '人参', '茯苓', '甘草', '丹参', '白芍', '地黄'];
-                const data = products.map(() => Math.floor(Math.random() * 500 + 100));
-                
-                const option = {
-                    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-                    xAxis: { type: 'value' },
-                    yAxis: { type: 'category', data: products },
-                    series: [{
-                        name: '扫码次数',
-                        type: 'bar',
-                        data: data,
-                        itemStyle: {
-                            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-                                { offset: 0, color: '#667eea' },
-                                { offset: 1, color: '#2BA471' }
-                            ])
-                        }
-                    }]
-                };
-                
-                rankingChartInstance.setOption(option);
+                try {
+                    const res = await api.get('/statistics/product');
+                    const dataList = res?.data || [];
+
+                    const products = dataList.map(item => item.productName);
+                    const data = dataList.map(item => item.scanCount);
+
+                    const option = {
+                        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                        xAxis: { type: 'value' },
+                        yAxis: { type: 'category', data: products },
+                        series: [{
+                            name: '扫码次数',
+                            type: 'bar',
+                            data: data,
+                            itemStyle: {
+                                color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                                    { offset: 0, color: '#667eea' },
+                                    { offset: 1, color: '#2BA471' }
+                                ])
+                            }
+                        }]
+                    };
+
+                    rankingChartInstance.setOption(option);
+                } catch (error) {
+                    console.error('加载排行数据失败', error);
+                }
             }
             
             // 加载风险告警
             async function loadRiskAlerts() {
                 try {
                     const tbody = document.getElementById('riskAlertBody');
-                    
-                    const mockData = [];
-                    for (let i = 0; i < 5; i++) {
-                        const date = new Date(Date.now() - Math.floor(Math.random() * 86400000 * 7));
-                        mockData.push({
-                            time: utils.formatTime(date.toISOString()),
-                            qrSerial: 'Q' + Math.random().toString(36).substr(2, 8).toUpperCase(),
-                            riskLevel: Math.random() > 0.5 ? 1 : 2,
-                            reason: Math.random() > 0.5 ? '短时间内大量查询' : '同一IP查询异常'
-                        });
-                    }
-                    
-                    if (mockData.length === 0) {
+
+                    const res = await api.get('/statistics/risk');
+                    const dataList = res?.data || [];
+
+                    if (dataList.length === 0) {
                         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#999;">暂无数据</td></tr>';
                         return;
                     }
-                    
-                    tbody.innerHTML = mockData.map(r => `
+
+                    tbody.innerHTML = dataList.map(r => `
                         <tr>
-                            <td>${r.time}</td>
-                            <td>${r.qrSerial}</td>
+                            <td>${utils.formatTime(r.scan_time)}</td>
+                            <td>${r.qr_serial || '-'}</td>
                             <td>
-                                <span style="color: ${r.riskLevel === 1 ? '#f59e0b' : '#c92a2a'}; font-weight:600;">
-                                    ${r.riskLevel === 1 ? '低风险' : '高风险'}
+                                <span class="layui-badge ${r.risk_level === 2 ? 'layui-bg-red' : 'layui-bg-orange'}">
+                                    ${r.risk_level === 2 ? '高风险' : '可疑'}
                                 </span>
                             </td>
-                            <td>${r.reason}</td>
+                            <td>${r.risk_reason || '-'}</td>
                         </tr>
                     `).join('');
                 } catch (error) {
                     console.error('加载风险告警失败', error);
+                    document.getElementById('riskAlertBody').innerHTML = '<tr><td colspan="4" style="text-align:center; color:#999;">加载失败</td></tr>';
                 }
             }
             

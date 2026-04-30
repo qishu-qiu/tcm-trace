@@ -12,7 +12,7 @@ $routes->group('api', ['namespace' => 'App\Controllers'], function (RouteCollect
     $routes->post('auth/logout', 'Auth::logout', ['filter' => 'auth:tenant']);
     $routes->post('auth/refresh', 'Auth::refreshToken', ['filter' => 'auth:tenant']);
 
-    $routes->group('', ['filter' => 'auth:tenant'], function (RouteCollection $routes) {
+    $routes->group('', ['filter' => ['auth:tenant', 'rateLimit']], function (RouteCollection $routes) {
         $routes->get('tenant', 'Tenant::index');
         $routes->put('tenant', 'Tenant::update');
         $routes->get('tenant/usage', 'Tenant::usage');
@@ -27,10 +27,13 @@ $routes->group('api', ['namespace' => 'App\Controllers'], function (RouteCollect
         $routes->delete('users/(:num)', 'User::delete/$1');
 
         $routes->get('products', 'Product::index');
+        $routes->get('products/categories', 'Product::categories');
         $routes->post('products', 'Product::create');
         $routes->get('products/(:num)', 'Product::show/$1');
         $routes->put('products/(:num)', 'Product::update/$1');
         $routes->delete('products/(:num)', 'Product::delete/$1');
+
+        $routes->post('upload/image', 'Product::uploadImage');
 
         $routes->get('batches', 'Batch::index');
         $routes->post('batches', 'Batch::create');
@@ -60,6 +63,7 @@ $routes->group('api', ['namespace' => 'App\Controllers'], function (RouteCollect
         $routes->get('statistics', 'Statistics::index');
         $routes->get('statistics/scan', 'Statistics::scan');
         $routes->get('statistics/product', 'Statistics::product');
+        $routes->get('statistics/risk', 'Statistics::risk');
 
         $routes->get('billing', 'Billing::index');
         $routes->get('billing/plans', 'Billing::plans');

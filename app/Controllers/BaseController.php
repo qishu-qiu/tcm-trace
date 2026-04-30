@@ -98,6 +98,19 @@ abstract class BaseController extends Controller
         return $this->userId;
     }
 
+    protected function getCurrentUser(): ?array
+    {
+        if (!$this->userId) {
+            return null;
+        }
+        $userModel = new \App\Models\UserModel();
+        $user = $userModel->find($this->userId);
+        if ($user) {
+            unset($user['password_hash']);
+        }
+        return $user;
+    }
+
     protected function getCurrentTenantId(): ?int
     {
         return $this->tenantId;

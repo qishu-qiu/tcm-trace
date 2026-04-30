@@ -145,16 +145,4 @@ class Tenant extends BaseController
             'url' => $logoUrl,
         ], '上传成功');
     }
-
-    protected function getCurrentUser(): array
-    {
-        $db = \Config\Database::connect();
-        $user = $db->table('users')
-            ->select('real_name, username')
-            ->where('id', $this->userId)
-            ->get()
-            ->getRowArray();
-        
-        return $user ?: ['realName' => null, 'username' => null];
-    }
 }

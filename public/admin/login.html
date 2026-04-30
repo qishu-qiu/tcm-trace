@@ -195,54 +195,9 @@
     </div>
 
     <script src="https://unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script src="/assets/admin/js/config.js"></script>
+    <script src="/assets/admin/js/common.js"></script>
     <script>
-        // 模拟登录API（演示用）
-        const mockLoginAPI = function(data) {
-            return new Promise((resolve, reject) => {
-                // 模拟网络延迟
-                setTimeout(() => {
-                    // 验证逻辑
-                    if (data.tenantSlug === 'tcm-trace' && 
-                        data.username === 'admin' && 
-                        data.password === 'admin123') {
-                        // 登录成功
-                        resolve({
-                            success: true,
-                            data: {
-                                token: 'mock-jwt-token-' + Date.now(),
-                                user: {
-                                    id: 1,
-                                    username: 'admin',
-                                    realName: '系统管理员',
-                                    role: 'admin'
-                                },
-                                tenant: {
-                                    id: 1,
-                                    name: '中药材溯源科技有限公司',
-                                    slug: 'tcm-trace'
-                                }
-                            },
-                            message: '登录成功'
-                        });
-                    } else if (!data.tenantSlug) {
-                        reject({ message: '请输入企业标识' });
-                    } else if (!data.username) {
-                        reject({ message: '请输入用户名' });
-                    } else if (!data.password) {
-                        reject({ message: '请输入密码' });
-                    } else if (data.tenantSlug !== 'tcm-trace') {
-                        reject({ message: '企业标识不存在，请检查输入' });
-                    } else if (data.username !== 'admin') {
-                        reject({ message: '用户名不存在，请检查输入' });
-                    } else if (data.password !== 'admin123') {
-                        reject({ message: '密码错误，请检查输入' });
-                    } else {
-                        reject({ message: '登录失败，请稍后重试' });
-                    }
-                }, 800);
-            });
-        };
-
         layui.use(['form', 'layer'], function(){
             const form = layui.form;
             const layer = layui.layer;
@@ -250,55 +205,39 @@
             form.on('submit(login)', function(data){
                 const btn = document.getElementById('loginBtn');
                 
-                // 防止重复提交
+                if (btn.disabled) return false;
+                
                 btn.disabled = true;
                 btn.textContent = '登录中...';
                 
                 const loading = layer.load(2, {shade: [0.3, '#000']});
                 
-                try {
-                    // 使用模拟API进行登录
-                    mockLoginAPI(data.field)
-                        .then(result => {
-                            layer.close(loading);
+                api.post('/auth/login', data.field)
+                    .then(result => {
+                        layer.close(loading);
+                        
+                        if (result && result.data && result.data.token) {
+                            auth.setToken(result.data.token);
+                            auth.setUserInfo(result.data.user);
                             
-                            if (result && result.success) {
-                                // 登录成功
-                                layer.msg('登录成功，正在跳转...', {icon: 1, time: 1200});
-                                
-                                setTimeout(() => {
-                                    // 保存登录状态
-                                    localStorage.setItem('isLoggedIn', 'true');
-                                    localStorage.setItem('userInfo', JSON.stringify(result.data));
-                                    // 跳转到演示页面
-                                    window.location.href = '/admin/demo.html';
-                                }, 1200);
-                            }
-                        })
-                        .catch(error => {
-                            layer.close(loading);
+                            layer.msg('登录成功', {icon: 1, time: 800});
                             
-                            // 恢复按钮状态
+                            setTimeout(() => {
+                                window.location.href = 'index.html';
+                            }, 500);
+                        } else {
                             btn.disabled = false;
                             btn.textContent = '立即登录';
-                            
-                            // 显示具体的错误信息
-                            const errorMsg = error && error.message ? error.message : '登录失败，请检查网络';
-                            layer.msg(errorMsg, {
-                                icon: 2,
-                                time: 3000,
-                                anim: 6 // 抖动动画
-                            });
-                        });
-                } catch (error) {
-                    layer.close(loading);
-                    btn.disabled = false;
-                    btn.textContent = '立即登录';
-                    
-                    layer.msg('发生错误，请稍后重试', {icon: 2, time: 3000});
-                }
+                            layer.msg(result?.message || '登录失败', {icon: 2});
+                        }
+                    })
+                    .catch(error => {
+                        layer.close(loading);
+                        btn.disabled = false;
+                        btn.textContent = '立即登录';
+                        layer.msg(error?.message || '登录失败，请检查网络连接', {icon: 2});
+                    });
                 
-                // 关键：阻止表单默认提交行为！
                 return false;
             });
         });

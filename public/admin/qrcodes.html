@@ -252,17 +252,23 @@
                 }
                 
                 layer.confirm(`确定要激活选中的 ${selectedIds.length} 个二维码吗？`, {icon: 3}, async function(index) {
+                    layer.load(2);
+                    let successCount = 0;
                     try {
-                        const successCount = 0;
                         for (const id of selectedIds) {
-                            await api.put('/qrcodes/' + id + '/status', { status: 2 });
+                            const res = await api.put('/qrcodes/' + id + '/status', { status: 2 });
+                            if (res && res.code === 200) {
+                                successCount++;
+                            }
                         }
-                        layer.msg('激活成功', {icon: 1});
+                        layer.closeAll('loading');
+                        layer.msg('成功激活 ' + successCount + ' 个二维码', {icon: 1});
                         loadTable(currentPage);
-                        layer.close(index);
                     } catch (error) {
-                        layer.msg('激活失败', {icon: 2});
+                        layer.closeAll('loading');
+                        layer.msg('操作失败', {icon: 2});
                     }
+                    layer.close(index);
                 });
             };
             
@@ -274,16 +280,23 @@
                 }
                 
                 layer.confirm(`确定要失效选中的 ${selectedIds.length} 个二维码吗？`, {icon: 3}, async function(index) {
+                    layer.load(2);
+                    let successCount = 0;
                     try {
                         for (const id of selectedIds) {
-                            await api.put('/qrcodes/' + id + '/disable');
+                            const res = await api.put('/qrcodes/' + id + '/disable');
+                            if (res && res.code === 200) {
+                                successCount++;
+                            }
                         }
-                        layer.msg('操作成功', {icon: 1});
+                        layer.closeAll('loading');
+                        layer.msg('成功失效 ' + successCount + ' 个二维码', {icon: 1});
                         loadTable(currentPage);
-                        layer.close(index);
                     } catch (error) {
+                        layer.closeAll('loading');
                         layer.msg('操作失败', {icon: 2});
                     }
+                    layer.close(index);
                 });
             };
             

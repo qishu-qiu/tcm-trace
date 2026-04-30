@@ -5,6 +5,8 @@ namespace App\Controllers;
 use App\Models\ProductModel;
 use App\Libraries\AuditService;
 
+helper('file');
+
 class Product extends BaseController
 {
     protected ProductModel $productModel;
@@ -61,7 +63,7 @@ class Product extends BaseController
 
         $imageUrl = null;
         if (isset($data['image']) && !empty($data['image'])) {
-            $imageUrl = $this->saveBase64Image($data['image']);
+            $imageUrl = save_base64_image($data['image']);
             if (!$imageUrl) {
                 return $this->error('图片上传失败', 500);
             }
@@ -138,7 +140,7 @@ class Product extends BaseController
         if (isset($data['description'])) $updateData['description'] = $data['description'];
 
         if (isset($data['image']) && !empty($data['image'])) {
-            $imageUrl = $this->saveBase64Image($data['image']);
+            $imageUrl = save_base64_image($data['image']);
             if ($imageUrl) {
                 $updateData['image_url'] = $imageUrl;
             }
@@ -180,45 +182,42 @@ class Product extends BaseController
         return $this->success($categories);
     }
 
-    protected function saveBase64Image(string $base64Image): ?string
+    public function uploadImage()
     {
-        $matches = [];
-        if (!preg_match('/^data:image\/(\w+);base64,(.+)$/', $base64Image, $matches)) {
-            return null;
+        $file = $this->request->getFile('file');
+        
+        if (!$file || !$file->isValid()) {
+            return $this->error('请选择要上传的图片', 400);
         }
-
-        $extension = $matches[1];
-        $imageData = base64_decode($matches[2]);
-
-        if ($imageData === false) {
-            return null;
+        
+        $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        if (!in_array($file->getMimeType(), $allowedTypes)) {
+            return $this->error('仅支持 jpg/jpeg/png/gif 格式的图片', 400);
         }
-
+        
+        $maxSize = 5 * 1024 * 1024;
+        if ($file->getSize() > $maxSize) {
+            return $this->error('图片大小不能超过5MB', 400);
+        }
+        
+        $extension = $file->getExtension();
+        if (empty($extension)) {
+            $extension = 'jpg';
+        }
+        
         $filename = uniqid() . '.' . $extension;
         $uploadPath = FCPATH . 'uploads/images/';
         
         if (!is_dir($uploadPath)) {
             mkdir($uploadPath, 0755, true);
         }
-
-        $filepath = $uploadPath . $filename;
-
-        if (!file_put_contents($filepath, $imageData)) {
-            return null;
-        }
-
-        return '/uploads/images/' . $filename;
-    }
-
-    protected function getCurrentUser(): array
-    {
-        $db = \Config\Database::connect();
-        $user = $db->table('users')
-            ->select('real_name, username')
-            ->where('id', $this->userId)
-            ->get()
-            ->getRowArray();
         
-        return $user ?: ['realName' => null, 'username' => null];
+        if (!$file->move($uploadPath, $filename)) {
+            return $this->error('图片上传失败', 500);
+        }
+        
+        return $this->success([
+            'url' => '/uploads/images/' . $filename
+        ]);
     }
 }

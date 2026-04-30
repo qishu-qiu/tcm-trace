@@ -173,16 +173,4 @@ class Batch extends BaseController
 
         return $this->success(null, '删除成功');
     }
-
-    protected function getCurrentUser(): array
-    {
-        $db = \Config\Database::connect();
-        $user = $db->table('users')
-            ->select('real_name, username')
-            ->where('id', $this->userId)
-            ->get()
-            ->getRowArray();
-        
-        return $user ?: ['realName' => null, 'username' => null];
-    }
 }

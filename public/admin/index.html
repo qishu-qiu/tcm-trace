@@ -69,6 +69,21 @@
             background: rgba(255, 255, 255, 0.3);
         }
         
+        .layui-header .right .btn-change-pwd {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+        }
+        
+        .layui-header .right .btn-change-pwd:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
         /* 侧边栏 */
         .layui-side {
             background: #1f2937;
@@ -266,6 +281,7 @@
             <div class="right">
                 <span class="tenant-name" id="tenantName">企业名称</span>
                 <span class="user-name" id="userName">用户名</span>
+                <button class="btn-change-pwd" id="btnChangePwd"><i class="layui-icon layui-icon-password"></i> 修改密码</button>
                 <button class="btn-logout" id="btnLogout"><i class="layui-icon layui-icon-logout"></i> 退出登录</button>
             </div>
         </div>
@@ -290,6 +306,9 @@
                 </li>
                 <li class="layui-nav-item">
                     <a href="javascript:;" data-title="审计日志" data-url="audit.html"><i class="layui-icon layui-icon-list"></i>审计日志</a>
+                </li>
+                <li class="layui-nav-item">
+                    <a href="javascript:;" data-title="订阅管理" data-url="billing.html"><i class="layui-icon layui-icon-auz"></i>订阅管理</a>
                 </li>
                 <li class="layui-nav-item">
                     <a href="javascript:;" data-title="系统设置" data-url="settings.html"><i class="layui-icon layui-icon-set"></i>系统设置</a>
@@ -330,17 +349,95 @@
             
             const userInfo = auth.getUserInfo();
             if (userInfo) {
-                document.getElementById('userName').textContent = userInfo.user?.realName || userInfo.user?.username || '用户';
-                document.getElementById('tenantName').textContent = userInfo.tenant?.name || '企业';
-                document.getElementById('welcomeMsg').textContent = `欢迎您，${userInfo.user?.realName || userInfo.user?.username || '用户'}！`;
+                document.getElementById('userName').textContent = userInfo.realName || userInfo.username || '用户';
+                document.getElementById('tenantName').textContent = userInfo.tenantName || '企业';
             }
+            
+            // 修改密码
+            document.getElementById('btnChangePwd').onclick = function(){
+                layer.open({
+                    type: 1,
+                    title: '修改密码',
+                    content: `
+                        <div style="padding: 25px;">
+                            <form class="layui-form" lay-filter="changePwdForm">
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">旧密码</label>
+                                    <div class="layui-input-block">
+                                        <input type="password" name="oldPassword" lay-verify="required" placeholder="请输入旧密码" class="layui-input" style="width:300px;">
+                                    </div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">新密码</label>
+                                    <div class="layui-input-block">
+                                        <input type="password" name="newPassword" lay-verify="required|minlength:6" placeholder="请输入新密码（至少6位）" class="layui-input" style="width:300px;">
+                                    </div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">确认密码</label>
+                                    <div class="layui-input-block">
+                                        <input type="password" name="confirmPassword" lay-verify="required|minlength:6" placeholder="请再次输入新密码" class="layui-input" style="width:300px;">
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    `,
+                    area: ['400px', 'auto'],
+                    btn: ['确认修改', '取消'],
+                    yes: async function(index) {
+                        const formData = form.val('changePwdForm');
+                        
+                        if (!formData.oldPassword) {
+                            layer.msg('请输入旧密码', {icon: 2});
+                            return;
+                        }
+                        if (!formData.newPassword) {
+                            layer.msg('请输入新密码', {icon: 2});
+                            return;
+                        }
+                        if (formData.newPassword.length < 6) {
+                            layer.msg('新密码至少6位', {icon: 2});
+                            return;
+                        }
+                        if (formData.newPassword !== formData.confirmPassword) {
+                            layer.msg('两次输入的新密码不一致', {icon: 2});
+                            return;
+                        }
+                        
+                        try {
+                            const res = await api.post('/auth/change-password', {
+                                oldPassword: formData.oldPassword,
+                                newPassword: formData.newPassword,
+                                confirmPassword: formData.confirmPassword
+                            });
+                            
+                            if (res && res.code === 200) {
+                                layer.msg('密码修改成功，请重新登录', {icon: 1});
+                                layer.close(index);
+                                setTimeout(() => {
+                                    auth.clear();
+                                    window.location.href = 'login.html';
+                                }, 1000);
+                            } else {
+                                layer.msg(res?.message || '修改失败', {icon: 2});
+                            }
+                        } catch (error) {
+                            layer.msg('修改失败，请稍后重试', {icon: 2});
+                        }
+                    }
+                });
+            };
             
             // 退出登录
             document.getElementById('btnLogout').onclick = function(){
                 layer.confirm('确定要退出登录吗？', {icon: 3, title: '提示'}, function(index){
-                    auth.clearAll();
-                    layer.close(index);
-                    window.location.href = '/admin/login.html';
+                    api.post('/auth/logout')
+                        .catch(() => {})
+                        .finally(() => {
+                            auth.clear();
+                            layer.close(index);
+                            window.location.href = 'login.html';
+                        });
                 });
             };
             

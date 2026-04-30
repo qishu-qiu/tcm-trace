@@ -333,7 +333,7 @@
             // 删除产品
             async function deleteProduct(id) {
                 try {
-                    const res = await api.delete('/products/' + id);
+                    const res = await api.del('/products/' + id);
                     if (res && res.code === 200) {
                         layer.msg('删除成功', {icon: 1});
                         loadTable(currentPage);

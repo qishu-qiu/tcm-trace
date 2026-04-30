@@ -69,11 +69,12 @@
         <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="delete">删除</a>
     </script>
     <script>
-        layui.use(['table', 'layer', 'form', 'element'], function(){
+        layui.use(['table', 'layer', 'form', 'element', 'upload'], function(){
             const table = layui.table;
             const layer = layui.layer;
             const form = layui.form;
             const element = layui.element;
+            const upload = layui.upload;
             
             let currentPage = 1;
             let currentPageSize = 20;
@@ -299,8 +300,8 @@
                                                 <button type="button" class="layui-btn layui-btn-primary" id="uploadReportBtn">
                                                     <i class="layui-icon layui-icon-upload-drag"></i> 上传报告
                                                 </button>
-                                                <span id="reportFileName" style="margin-left:10px;color:#666;">${data?.inspect_report || ''}</span>
-                                                <input type="hidden" name="inspectReport" value="${data?.inspect_report || ''}">
+                                                <span id="reportFileName" style="margin-left:10px;color:#666;">${data?.inspect_report ? '已上传' : '未上传'}</span>
+                                                <input type="hidden" id="inspectReport" name="inspectReport" value="${data?.inspect_report || ''}">
                                             </div>
                                         </div>
                                     </div>
@@ -339,13 +340,32 @@
                     success: async function() {
                         element.init();
                         
-                        // 加载产品选择
                         const productRes = await api.get('/products');
                         const products = productRes?.data?.list || [];
                         const selectProduct = document.getElementById('selectProduct');
                         selectProduct.innerHTML = '<option value="">请选择产品</option>' + products.map(p => `<option value="${p.id}" ${data?.product_id === p.id ? 'selected' : ''}>${p.name}</option>`).join('');
                         
                         form.render('select');
+                        
+                        upload.render({
+                            elem: '#uploadReportBtn',
+                            url: API_BASE_URL + '/upload/image',
+                            accept: 'file',
+                            exts: 'jpg|jpeg|png|gif|pdf',
+                            size: 5120,
+                            done: function(res) {
+                                if (res.code === 200) {
+                                    document.querySelector('input[name="inspectReport"]').value = res.data.url;
+                                    document.getElementById('reportFileName').textContent = res.data.url;
+                                    layer.msg('上传成功', {icon: 1});
+                                } else {
+                                    layer.msg(res.message || '上传失败', {icon: 2});
+                                }
+                            },
+                            error: function() {
+                                layer.msg('上传失败', {icon: 2});
+                            }
+                        });
                     },
                     btn: ['保存', '取消'],
                     yes: function() {
@@ -507,7 +527,7 @@
             // 删除批次
             async function deleteBatch(id) {
                 try {
-                    const res = await api.delete('/batches/' + id);
+                    const res = await api.del('/batches/' + id);
                     if (res && res.code === 200) {
                         layer.msg('删除成功', {icon: 1});
                         loadTable(currentPage);

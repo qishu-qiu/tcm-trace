@@ -199,7 +199,7 @@ class Scan extends BaseController
                 
                 const fetchData = async () => {
                     try {
-                        const response = await fetch('{$baseUrl}api/scan/' + qrSerial);
+                        const response = await fetch('{$baseUrl}api/scan/verify/' + qrSerial);
                         const data = await response.json();
                         
                         if (data.code === 200 && data.data) {

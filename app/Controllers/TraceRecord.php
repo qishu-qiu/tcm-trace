@@ -6,6 +6,8 @@ use App\Models\TraceRecordModel;
 use App\Models\BatchModel;
 use App\Libraries\AuditService;
 
+helper('file');
+
 class TraceRecord extends BaseController
 {
     protected TraceRecordModel $traceRecordModel;
@@ -95,7 +97,7 @@ class TraceRecord extends BaseController
                 return $this->error('附件最多上传9张', 400);
             }
             foreach ($data['attachments'] as $base64Image) {
-                $url = $this->saveBase64Image($base64Image);
+                $url = save_base64_image($base64Image, 'reports');
                 if ($url) {
                     $attachments[] = $url;
                 }
@@ -242,47 +244,5 @@ class TraceRecord extends BaseController
         }
 
         return null;
-    }
-
-    protected function saveBase64Image(string $base64Image): ?string
-    {
-        $matches = [];
-        if (!preg_match('/^data:image\/(\w+);base64,(.+)$/', $base64Image, $matches)) {
-            return null;
-        }
-
-        $extension = $matches[1];
-        $imageData = base64_decode($matches[2]);
-
-        if ($imageData === false) {
-            return null;
-        }
-
-        $filename = uniqid() . '.' . $extension;
-        $uploadPath = FCPATH . 'uploads/reports/';
-        
-        if (!is_dir($uploadPath)) {
-            mkdir($uploadPath, 0755, true);
-        }
-
-        $filepath = $uploadPath . $filename;
-
-        if (!file_put_contents($filepath, $imageData)) {
-            return null;
-        }
-
-        return '/uploads/reports/' . $filename;
-    }
-
-    protected function getCurrentUser(): array
-    {
-        $db = \Config\Database::connect();
-        $user = $db->table('users')
-            ->select('real_name, username')
-            ->where('id', $this->userId)
-            ->get()
-            ->getRowArray();
-        
-        return $user ?: ['realName' => null, 'username' => null];
     }
 }

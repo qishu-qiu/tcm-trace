@@ -126,7 +126,7 @@
                         </div>
                         
                         <div style="margin-top: 24px;">
-                            <button class="layui-btn layui-btn-lg">升级套餐</button>
+                            <button class="layui-btn layui-btn-lg" id="btnUpgrade">升级套餐</button>
                         </div>
                     </div>
                 </div>
@@ -333,21 +333,116 @@
                 });
             };
             
+            // 编辑用户
+            async function editUser(userId) {
+                try {
+                    const res = await api.get('/users/' + userId);
+                    if (!res || !res.data) {
+                        layer.msg('获取用户信息失败', {icon: 2});
+                        return;
+                    }
+                    
+                    const user = res.data;
+                    
+                    layer.open({
+                        type: 1,
+                        title: '编辑用户',
+                        content: `
+                            <div style="padding: 20px;">
+                                <form class="layui-form" lay-filter="editUserForm">
+                                    <div class="layui-form-item">
+                                        <label class="layui-form-label">用户名</label>
+                                        <div class="layui-input-block">
+                                            <input type="text" value="${user.username}" class="layui-input" readonly style="background:#f0f0f0;">
+                                        </div>
+                                    </div>
+                                    <div class="layui-form-item">
+                                        <label class="layui-form-label">真实姓名</label>
+                                        <div class="layui-input-block">
+                                            <input type="text" name="realName" value="${user.real_name || ''}" placeholder="请输入真实姓名" class="layui-input">
+                                        </div>
+                                    </div>
+                                    <div class="layui-form-item">
+                                        <label class="layui-form-label">手机号</label>
+                                        <div class="layui-input-block">
+                                            <input type="text" name="phone" value="${user.phone || ''}" placeholder="请输入手机号" class="layui-input">
+                                        </div>
+                                    </div>
+                                    <div class="layui-form-item">
+                                        <label class="layui-form-label">邮箱</label>
+                                        <div class="layui-input-block">
+                                            <input type="text" name="email" value="${user.email || ''}" placeholder="请输入邮箱" class="layui-input">
+                                        </div>
+                                    </div>
+                                    <div class="layui-form-item">
+                                        <label class="layui-form-label">角色</label>
+                                        <div class="layui-input-block">
+                                            <select name="role">
+                                                <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>管理员</option>
+                                                <option value="staff" ${user.role === 'staff' ? 'selected' : ''}>员工</option>
+                                                <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>访客</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        `,
+                        area: ['480px', 'auto'],
+                        btn: ['确定', '取消'],
+                        success: function() {
+                            form.render('select');
+                        },
+                        yes: async function(index) {
+                            const formData = form.val('editUserForm');
+                            
+                            try {
+                                const updateRes = await api.put('/users/' + userId, formData);
+                                if (updateRes && updateRes.code === 200) {
+                                    layer.msg('更新成功', {icon: 1});
+                                    loadUsers();
+                                    layer.close(index);
+                                } else {
+                                    layer.msg(updateRes?.message || '更新失败', {icon: 2});
+                                }
+                            } catch (error) {
+                                layer.msg('更新失败', {icon: 2});
+                            }
+                        }
+                    });
+                } catch (error) {
+                    layer.msg('获取用户信息失败', {icon: 2});
+                }
+            }
+            
+            // 升级套餐
+            document.getElementById('btnUpgrade').onclick = function() {
+                layer.open({
+                    type: 2,
+                    title: '订阅管理',
+                    content: 'billing.html',
+                    area: ['900px', '600px'],
+                    maxmin: true
+                });
+            };
+            
             // 表格操作
             table.on('tool(userTable)', function(obj) {
                 const data = obj.data;
                 
                 if (obj.event === 'edit') {
-                    layer.msg('编辑功能开发中');
+                    editUser(data.id);
                 } else if (obj.event === 'resetPwd') {
                     layer.confirm('确定要重置该用户的密码吗？', {icon: 3}, async function(index) {
                         try {
                             const res = await api.put('/users/' + data.id + '/reset-password');
                             if (res && res.code === 200) {
-                                layer.alert('新密码：<strong>' + res.data.newPassword + '</strong><br>请妥善保管', {
+                                layer.alert('新密码：<strong style="font-size:18px;color:#2BA471;">' + res.data.newPassword + '</strong><br><br>请妥善保管，忘记后将无法找回！', {
                                     title: '密码已重置',
-                                    icon: 1
+                                    icon: 1,
+                                    shadeClose: false
                                 });
+                            } else {
+                                layer.msg(res?.message || '重置失败', {icon: 2});
                             }
                         } catch (error) {
                             layer.msg('重置失败', {icon: 2});
@@ -356,12 +451,14 @@
                     });
                 } else if (obj.event === 'toggleStatus') {
                     const newStatus = data.status === 1 ? 0 : 1;
-                    layer.confirm(`确定要${newStatus === 1 ? '启用' : '禁用'}该用户吗？`, {icon: 3}, async function(index) {
+                    layer.confirm('确定要' + (newStatus === 1 ? '启用' : '禁用') + '该用户吗？', {icon: 3}, async function(index) {
                         try {
                             const res = await api.put('/users/' + data.id + '/status', { status: newStatus });
                             if (res && res.code === 200) {
                                 layer.msg('操作成功', {icon: 1});
                                 loadUsers();
+                            } else {
+                                layer.msg(res?.message || '操作失败', {icon: 2});
                             }
                         } catch (error) {
                             layer.msg('操作失败', {icon: 2});
