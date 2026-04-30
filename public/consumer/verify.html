@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>中药材溯源验证</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #F5F5F5;
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 750px;
+            margin: 0 auto;
+            padding-bottom: 60px;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #F5F5F5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e0e0e0;
+            border-top-color: #2BA471;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 16px;
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .status-bar {
+            padding: 24px 20px;
+            text-align: center;
+            color: #fff;
+        }
+        
+        .status-bar.valid {
+            background: linear-gradient(135deg, #2BA471 0%, #38b87a 100%);
+        }
+        
+        .status-bar.invalid {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        }
+        
+        .status-bar.warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+        }
+        
+        .status-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        
+        .status-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        
+        .status-message {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .risk-alert {
+            background: #fff3f3;
+            border: 1px solid #ffc9c9;
+            margin: 16px;
+            padding: 16px;
+            border-radius: 8px;
+        }
+        
+        .risk-alert-title {
+            color: #c92a2a;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .risk-alert-text {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .card {
+            background: #fff;
+            margin: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .card-header-icon {
+            margin-right: 8px;
+        }
+        
+        .card-body {
+            padding: 16px;
+        }
+        
+        .product-name {
+            font-size: 22px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 16px;
+        }
+        
+        .info-list {
+            list-style: none;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .info-value {
+            color: #333;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: right;
+            max-width: 60%;
+        }
+        
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e0e0e0;
+        }
+        
+        .timeline-item {
+            position: relative;
+            padding-bottom: 20px;
+        }
+        
+        .timeline-item:last-child {
+            padding-bottom: 0;
+        }
+        
+        .timeline-dot {
+            position: absolute;
+            left: -24px;
+            top: 4px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #2BA471;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #fff;
+        }
+        
+        .timeline-content {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        
+        .timeline-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .timeline-time {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+        
+        .timeline-detail {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .timeline-detail-item {
+            margin-bottom: 4px;
+        }
+        
+        .timeline-attachments {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .timeline-attachment {
+            width: 60px;
+            height: 60px;
+            border-radius: 6px;
+            object-fit: cover;
+            cursor: pointer;
+        }
+        
+        .inspect-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .inspect-tag.pass {
+            background: #e6f7f1;
+            color: #2BA471;
+        }
+        
+        .inspect-tag.fail {
+            background: #fff3f3;
+            color: #c92a2a;
+        }
+        
+        .report-thumb {
+            width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .guide-section {
+            margin-bottom: 16px;
+        }
+        
+        .guide-title {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 6px;
+        }
+        
+        .guide-content {
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .scan-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        
+        .scan-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+        
+        .scan-info-label {
+            color: #999;
+        }
+        
+        .scan-info-value {
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .footer-company {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .footer-phone {
+            color: #2BA471;
+            text-decoration: none;
+        }
+        
+        .lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        
+        .lightbox.active {
+            display: flex;
+        }
+        
+        .lightbox-img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+        
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #fff;
+            font-size: 30px;
+            cursor: pointer;
+        }
+        
+        .error-page {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .error-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .error-title {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 12px;
+        }
+        
+        .error-message {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 24px;
+        }
+        
+        .error-reasons {
+            text-align: left;
+            background: #fff;
+            margin: 0 20px;
+            padding: 16px;
+            border-radius: 8px;
+        }
+        
+        .error-reasons-title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 12px;
+        }
+        
+        .error-reasons-list {
+            list-style: none;
+        }
+        
+        .error-reasons-list li {
+            padding: 8px 0;
+            color: #999;
+            font-size: 13px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .error-reasons-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .btn-contact {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 12px 32px;
+            background: #2BA471;
+            color: #fff;
+            border-radius: 24px;
+            text-decoration: none;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">正在查询...</div>
+        </div>
+        
+        <div id="content" style="display: none;"></div>
+    </div>
+    
+    <div class="lightbox" id="lightbox">
+        <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+        <img class="lightbox-img" id="lightboxImg" src="" alt="">
+    </div>
+
+    <script>
+        const stageIcons = {
+            plant: '🌱',
+            harvest: '✂️',
+            process: '🏭',
+            inspect: '✅',
+            store: '📦',
+            transport: '🚚',
+            sale: '🛒'
+        };
+        
+        const stageNames = {
+            plant: '种植',
+            harvest: '采收',
+            process: '加工',
+            inspect: '检验',
+            store: '仓储',
+            transport: '运输',
+            sale: '销售'
+        };
+        
+        function getQrSerial() {
+            const path = window.location.pathname;
+            const matches = path.match(/verify\/([^\/]+)/);
+            return matches ? matches[1] : null;
+        }
+        
+        async function loadData() {
+            const qrSerial = getQrSerial();
+            
+            if (!qrSerial) {
+                showError('无效溯源码', '未找到溯源码信息');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/scan/' + qrSerial);
+                const result = await response.json();
+                
+                if (result.code === 200 && result.data) {
+                    renderPage(result.data);
+                } else {
+                    showError('查询失败', result.message || '无法获取产品信息');
+                }
+            } catch (error) {
+                console.error('请求失败', error);
+                showError('网络错误', '请检查网络连接后重试');
+            }
+        }
+        
+        function renderPage(data) {
+            const loading = document.getElementById('loading');
+            const content = document.getElementById('content');
+            
+            loading.style.display = 'none';
+            content.style.display = 'block';
+            
+            if (!data.valid) {
+                renderInvalidPage(data);
+                return;
+            }
+            
+            let riskAlertHtml = '';
+            if (data.riskLevel === 2) {
+                riskAlertHtml = `
+                    <div class="risk-alert">
+                        <div class="risk-alert-title">⚠️ 风险提示</div>
+                        <div class="risk-alert-text">${data.riskReason || '该产品可能存在风险，请谨慎购买'}</div>
+                    </div>
+                `;
+            }
+            
+            let timelineHtml = '';
+            if (data.traceTimeline && data.traceTimeline.length > 0) {
+                timelineHtml = `
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-header-icon">📋</span>
+                            溯源时间线
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline">
+                                ${data.traceTimeline.map(item => renderTimelineItem(item)).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            let inspectHtml = '';
+            if (data.inspectResult) {
+                inspectHtml = `
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-header-icon">🔬</span>
+                            质检信息
+                        </div>
+                        <div class="card-body">
+                            <div style="margin-bottom: 12px;">
+                                <span class="inspect-tag ${data.inspectResult === '合格' ? 'pass' : 'fail'}">
+                                    ${data.inspectResult === '合格' ? '✓ 检验合格' : '✗ 检验不合格'}
+                                </span>
+                            </div>
+                            ${data.inspectReport ? `
+                                <img class="report-thumb" src="${data.inspectReport}" alt="检测报告" onclick="openLightbox(this.src)">
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            let scanInfoHtml = '';
+            if (data.scanInfo) {
+                scanInfoHtml = `
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-header-icon">🔍</span>
+                            扫码验证
+                        </div>
+                        <div class="card-body">
+                            <div class="scan-info">
+                                <div class="scan-info-item">
+                                    <span class="scan-info-label">首次验证</span>
+                                    <span class="scan-info-value">${data.scanInfo.isFirstScan ? '是' : '否'}</span>
+                                </div>
+                                <div class="scan-info-item">
+                                    <span class="scan-info-label">累计验证</span>
+                                    <span class="scan-info-value">${data.scanInfo.totalScans} 次</span>
+                                </div>
+                                ${data.scanInfo.firstScanTime ? `
+                                    <div class="scan-info-item">
+                                        <span class="scan-info-label">首次验证时间</span>
+                                        <span class="scan-info-value">${data.scanInfo.firstScanTime}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            const statusClass = data.riskLevel === 2 ? 'warning' : 'valid';
+            const statusIcon = data.riskLevel === 2 ? '⚠️' : '✓';
+            const statusTitle = data.riskLevel === 2 ? '请注意，该产品可能存在风险' : '该产品为正品';
+            const statusMessage = data.riskLevel === 2 ? '建议联系商家核实' : '产品信息已通过验证';
+            
+            content.innerHTML = `
+                <div class="status-bar ${statusClass}">
+                    <div class="status-icon">${statusIcon}</div>
+                    <div class="status-title">${statusTitle}</div>
+                    <div class="status-message">${statusMessage}</div>
+                </div>
+                
+                ${riskAlertHtml}
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-header-icon">📦</span>
+                        产品信息
+                    </div>
+                    <div class="card-body">
+                        <div class="product-name">${data.productName || '未知产品'}</div>
+                        <ul class="info-list">
+                            ${data.batchNo ? `<li class="info-item"><span class="info-label">批号</span><span class="info-value">${data.batchNo}</span></li>` : ''}
+                            ${data.origin ? `<li class="info-item"><span class="info-label">产地</span><span class="info-value">${data.origin}</span></li>` : ''}
+                            ${data.specification ? `<li class="info-item"><span class="info-label">规格</span><span class="info-value">${data.specification}</span></li>` : ''}
+                            ${data.enterprise ? `<li class="info-item"><span class="info-label">生产企业</span><span class="info-value">${data.enterprise}</span></li>` : ''}
+                            ${data.productionDate ? `<li class="info-item"><span class="info-label">生产日期</span><span class="info-value">${data.productionDate}</span></li>` : ''}
+                        </ul>
+                    </div>
+                </div>
+                
+                ${timelineHtml}
+                ${inspectHtml}
+                ${scanInfoHtml}
+                
+                <div class="footer">
+                    <div class="footer-company">${data.enterprise || '中药材溯源平台'}</div>
+                    <div>© 2025 中药材溯源平台 · 安全可信赖</div>
+                </div>
+            `;
+        }
+        
+        function renderTimelineItem(item) {
+            let detailHtml = '';
+            if (item.detail && Object.keys(item.detail).length > 0) {
+                detailHtml = `
+                    <div class="timeline-detail">
+                        ${Object.entries(item.detail).map(([key, value]) => {
+                            if (key === 'items' && Array.isArray(value)) {
+                                return `<div class="timeline-detail-item">检验项目: ${value.map(i => i.name).join(', ')}</div>`;
+                            }
+                            return `<div class="timeline-detail-item">${key}: ${value}</div>`;
+                        }).join('')}
+                    </div>
+                `;
+            }
+            
+            let attachmentsHtml = '';
+            if (item.attachments && item.attachments.length > 0) {
+                attachmentsHtml = `
+                    <div class="timeline-attachments">
+                        ${item.attachments.map(url => `
+                            <img class="timeline-attachment" src="${url}" alt="附件" onclick="openLightbox('${url}')">
+                        `).join('')}
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="timeline-item">
+                    <div class="timeline-dot">${stageIcons[item.stage] || '●'}</div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">${stageNames[item.stage] || item.stage}</div>
+                        <div class="timeline-time">${item.time || ''}</div>
+                        ${detailHtml}
+                        ${attachmentsHtml}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderInvalidPage(data) {
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="status-bar invalid">
+                    <div class="status-icon">✗</div>
+                    <div class="status-title">无效溯源码</div>
+                    <div class="status-message">${data.message || '该溯源码不存在或已被禁用'}</div>
+                </div>
+                
+                <div class="error-reasons">
+                    <div class="error-reasons-title">可能原因：</div>
+                    <ul class="error-reasons-list">
+                        <li>• 溯源码输入错误，请核对后重试</li>
+                        <li>• 该溯源码已被禁用或过期</li>
+                        <li>• 产品可能为假冒伪劣商品</li>
+                        <li>• 系统数据同步延迟，请稍后重试</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center; margin-top: 24px;">
+                    <a href="tel:400-123-4567" class="btn-contact">联系客服</a>
+                </div>
+                
+                <div class="footer">
+                    <div class="footer-company">中药材溯源平台</div>
+                    <div>© 2025 中药材溯源平台 · 安全可信赖</div>
+                </div>
+            `;
+        }
+        
+        function showError(title, message) {
+            const loading = document.getElementById('loading');
+            const content = document.getElementById('content');
+            
+            loading.style.display = 'none';
+            content.style.display = 'block';
+            
+            content.innerHTML = `
+                <div class="error-page">
+                    <div class="error-icon">😕</div>
+                    <div class="error-title">${title}</div>
+                    <div class="error-message">${message}</div>
+                    <a href="javascript:location.reload();" class="btn-contact">重新查询</a>
+                </div>
+            `;
+        }
+        
+        function openLightbox(src) {
+            const lightbox = document.getElementById('lightbox');
+            const img = document.getElementById('lightboxImg');
+            img.src = src;
+            lightbox.classList.add('active');
+        }
+        
+        function closeLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            lightbox.classList.remove('active');
+        }
+        
+        document.getElementById('lightbox').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeLightbox();
+            }
+        });
+        
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>

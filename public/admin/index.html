@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中药材溯源管理平台</title>
+    <link rel="stylesheet" href="https://unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f7fa;
+        }
+        
+        /* 顶部栏 */
+        .layui-header {
+            background: linear-gradient(135deg, #667eea 0%, #2BA471 100%);
+            height: 60px !important;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .layui-header .logo {
+            font-size: 20px;
+            font-weight: 600;
+            line-height: 60px;
+            padding: 0 25px;
+            color: #fff;
+            cursor: pointer;
+        }
+        
+        .layui-header .logo i {
+            margin-right: 10px;
+            font-size: 26px;
+        }
+        
+        .layui-header .right {
+            float: right;
+            line-height: 60px;
+            padding: 0 25px;
+            font-size: 14px;
+        }
+        
+        .layui-header .right .user-name {
+            margin-right: 20px;
+        }
+        
+        .layui-header .right .tenant-name {
+            margin-right: 20px;
+            opacity: 0.9;
+        }
+        
+        .layui-header .right .btn-logout {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .layui-header .right .btn-logout:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* 侧边栏 */
+        .layui-side {
+            background: #1f2937;
+            top: 60px !important;
+        }
+        
+        .layui-nav {
+            background: transparent;
+            border: none;
+        }
+        
+        .layui-nav-tree {
+            width: 200px;
+        }
+        
+        .layui-nav-item > a {
+            color: #9ca3af;
+            padding: 16px 25px;
+            transition: all 0.3s;
+        }
+        
+        .layui-nav-item > a:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .layui-nav-item.layui-this > a {
+            background: linear-gradient(90deg, rgba(43, 164, 113, 0.2) 0%, rgba(43, 164, 113, 0) 100%);
+            color: #fff;
+            border-left: 3px solid #2BA471;
+            padding-left: 22px;
+        }
+        
+        .layui-nav-item a i {
+            margin-right: 10px;
+            font-size: 16px;
+        }
+        
+        /* 主体内容 */
+        .layui-body {
+            left: 200px !important;
+            top: 60px !important;
+            background: #f5f7fa;
+            padding: 0;
+        }
+        
+        /* Tab标签 */
+        .layui-tab {
+            margin: 0;
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .layui-tab-title {
+            border-bottom: 1px solid #eee;
+            height: 44px;
+            padding: 0 20px;
+        }
+        
+        .layui-tab-title li {
+            height: 44px;
+            line-height: 44px;
+            color: #555;
+            padding: 0 20px;
+        }
+        
+        .layui-tab-title li.layui-this {
+            color: #2BA471;
+            border-top: 3px solid #2BA471;
+            background: transparent;
+        }
+        
+        .layui-tab-title li:hover {
+            color: #2BA471;
+        }
+        
+        .layui-tab-content {
+            padding: 0;
+            margin: 0;
+        }
+        
+        .layui-tab-item {
+            height: calc(100vh - 104px);
+            padding: 0;
+            margin: 0;
+        }
+        
+        .layui-tab-item iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        /* 工作台样式 */
+        .dashboard {
+            padding: 24px;
+            background: #f5f7fa;
+            min-height: 100%;
+        }
+        
+        .dashboard .welcome {
+            background: #fff;
+            padding: 28px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            margin-bottom: 24px;
+        }
+        
+        .dashboard .welcome h2 {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .dashboard .welcome p {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 0;
+        }
+        
+        .dashboard .welcome .stats {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #2BA471 100%);
+            padding: 24px;
+            border-radius: 8px;
+            color: white;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .stat-card:nth-child(2) {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .stat-card:nth-child(3) {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        
+        .stat-card:nth-child(4) {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+        
+        .dashboard .content-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            margin-bottom: 24px;
+        }
+        
+        .dashboard .content-card .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .dashboard .content-card .card-body {
+            padding: 24px;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        
+        .tips-list {
+            padding-left: 20px;
+        }
+        
+        .tips-list li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="layui-layout layui-layout-admin">
+        <!-- 顶部栏 -->
+        <div class="layui-header">
+            <div class="logo"><i class="layui-icon layui-icon-home"></i>中药材溯源管理平台</div>
+            <div class="right">
+                <span class="tenant-name" id="tenantName">企业名称</span>
+                <span class="user-name" id="userName">用户名</span>
+                <button class="btn-logout" id="btnLogout"><i class="layui-icon layui-icon-logout"></i> 退出登录</button>
+            </div>
+        </div>
+        
+        <!-- 侧边栏 -->
+        <div class="layui-side layui-bg-black">
+            <ul class="layui-nav layui-nav-tree" lay-filter="nav">
+                <li class="layui-nav-item layui-this">
+                    <a href="javascript:;" data-title="工作台" data-url="dashboard.html"><i class="layui-icon layui-icon-console"></i>工作台</a>
+                </li>
+                <li class="layui-nav-item">
+                    <a href="javascript:;" data-title="产品管理" data-url="products.html"><i class="layui-icon layui-icon-component"></i>产品管理</a>
+                </li>
+                <li class="layui-nav-item">
+                    <a href="javascript:;" data-title="批次管理" data-url="batches.html"><i class="layui-icon layui-icon-form"></i>批次管理</a>
+                </li>
+                <li class="layui-nav-item">
+                    <a href="javascript:;" data-title="二维码管理" data-url="qrcodes.html"><i class="layui-icon layui-icon-rmb"></i>二维码管理</a>
+                </li>
+                <li class="layui-nav-item">
+                    <a href="javascript:;" data-title="扫码统计" data-url="statistics.html"><i class="layui-icon layui-icon-chart"></i>扫码统计</a>
+                </li>
+                <li class="layui-nav-item">
+                    <a href="javascript:;" data-title="审计日志" data-url="audit.html"><i class="layui-icon layui-icon-list"></i>审计日志</a>
+                </li>
+                <li class="layui-nav-item">
+                    <a href="javascript:;" data-title="系统设置" data-url="settings.html"><i class="layui-icon layui-icon-set"></i>系统设置</a>
+                </li>
+            </ul>
+        </div>
+        
+        <!-- 主体内容 -->
+        <div class="layui-body">
+            <div class="layui-tab layui-tab-brief" lay-filter="tab" lay-allowClose="true">
+                <ul class="layui-tab-title">
+                    <li class="layui-this" lay-id="dashboard">工作台</li>
+                </ul>
+                <div class="layui-tab-content">
+                    <div class="layui-tab-item layui-show" id="tab-dashboard">
+                        <iframe src="dashboard.html" style="width:100%; height:100%; border:none;"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script src="/assets/admin/js/config.js"></script>
+    <script src="/assets/admin/js/common.js"></script>
+    <script>
+        layui.use(['form', 'layer', 'element', 'laypage'], function(){
+            const form = layui.form;
+            const layer = layui.layer;
+            const element = layui.element;
+            
+            // 检查登录
+            const token = auth.getToken();
+            if (!token) {
+                window.location.href = '/admin/login.html';
+                return;
+            }
+            
+            const userInfo = auth.getUserInfo();
+            if (userInfo) {
+                document.getElementById('userName').textContent = userInfo.user?.realName || userInfo.user?.username || '用户';
+                document.getElementById('tenantName').textContent = userInfo.tenant?.name || '企业';
+                document.getElementById('welcomeMsg').textContent = `欢迎您，${userInfo.user?.realName || userInfo.user?.username || '用户'}！`;
+            }
+            
+            // 退出登录
+            document.getElementById('btnLogout').onclick = function(){
+                layer.confirm('确定要退出登录吗？', {icon: 3, title: '提示'}, function(index){
+                    auth.clearAll();
+                    layer.close(index);
+                    window.location.href = '/admin/login.html';
+                });
+            };
+            
+            // 导航栏点击事件
+            element.on('nav(nav)', function(elem){
+                const title = elem.attr('data-title');
+                const url = elem.attr('data-url');
+                
+                const tabId = title.replace(/\s/g, '');
+                
+                const existingTab = document.querySelector('.layui-tab-title li[lay-id="' + tabId + '"]');
+                if (existingTab) {
+                    element.tabChange('tab', tabId);
+                    return;
+                }
+                
+                const li = document.createElement('li');
+                li.setAttribute('lay-id', tabId);
+                li.textContent = title;
+                document.querySelector('.layui-tab-title').appendChild(li);
+                
+                const tabItem = document.createElement('div');
+                tabItem.className = 'layui-tab-item';
+                const iframe = document.createElement('iframe');
+                iframe.src = url;
+                tabItem.appendChild(iframe);
+                document.querySelector('.layui-tab-content').appendChild(tabItem);
+                
+                element.tabChange('tab', tabId);
+            });
+        });
+    </script>
+</body>
+</html>

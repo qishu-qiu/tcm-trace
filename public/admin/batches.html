@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>批次管理 - 中药材溯源管理平台</title>
+    <link rel="stylesheet" href="https://unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f5f7fa; padding: 20px; }
+        .layui-card { border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+        .layui-card-header { font-size: 16px; font-weight: 600; color: #333; border-bottom: 1px solid #eee; }
+        .search-bar { padding: 16px; background: #fff; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        .search-bar .layui-form-item { margin-bottom: 0; margin-right: 0; }
+        .search-bar .layui-btn { margin-left: 10px; }
+        .table-container { padding: 16px; }
+    </style>
+</head>
+<body>
+    <div class="layui-card">
+        <div class="search-bar">
+            <form class="layui-form" lay-filter="searchForm">
+                <div class="layui-form-item">
+                    <label class="layui-form-label">关键词</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="keyword" placeholder="请输入批次号/产品名称" autocomplete="off" class="layui-input">
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">产品</label>
+                    <div class="layui-input-inline">
+                        <select name="productId">
+                            <option value="">全部</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">状态</label>
+                    <div class="layui-input-inline">
+                        <select name="status">
+                            <option value="">全部</option>
+                            <option value="0">草稿</option>
+                            <option value="1">在库</option>
+                            <option value="2">已售出</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <button class="layui-btn layui-btn-primary" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                    <button type="button" class="layui-btn" id="btnAdd">
+                        <i class="layui-icon layui-icon-add-1"></i> 新增批次
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="table-container">
+            <table id="batchTable" lay-filter="batchTable"></table>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script src="/assets/admin/js/config.js"></script>
+    <script src="/assets/admin/js/common.js"></script>
+    <script type="text/html" id="batchTpl">
+        <a class="layui-btn layui-btn-normal layui-btn-xs" lay-event="detail">详情</a>
+        <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+        <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="delete">删除</a>
+    </script>
+    <script>
+        layui.use(['table', 'layer', 'form', 'element'], function(){
+            const table = layui.table;
+            const layer = layui.layer;
+            const form = layui.form;
+            const element = layui.element;
+            
+            let currentPage = 1;
+            let currentPageSize = 20;
+            
+            // 加载产品列表
+            async function loadProducts() {
+                try {
+                    const res = await api.get('/products');
+                    const products = res?.data?.list || [];
+                    
+                    const select = document.querySelector('select[name="productId"]');
+                    select.innerHTML = '<option value="">全部</option>' + products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+                    form.render('select');
+                } catch (error) {
+                    console.error('加载产品失败', error);
+                }
+            }
+            
+            // 加载表格
+            async function loadTable(page = 1) {
+                currentPage = page;
+                const keyword = document.querySelector('input[name="keyword"]').value;
+                const productId = document.querySelector('select[name="productId"]').value;
+                const status = document.querySelector('select[name="status"]').value;
+                
+                try {
+                    const res = await api.get('/batches', {
+                        page: page,
+                        pageSize: currentPageSize,
+                        keyword: keyword,
+                        productId: productId,
+                        status: status
+                    });
+                    
+                    const data = res?.data || { list: [], total: 0 };
+                    
+                    table.render({
+                        elem: '#batchTable',
+                        cols: [[
+                            { field: 'id', title: 'ID', width: 80, sort: true },
+                            { field: 'batch_no', title: '批次号', width: 180 },
+                            { field: 'product_name', title: '产品名称', width: 150 },
+                            { field: 'origin', title: '产地', width: 120 },
+                            { field: 'harvest_date', title: '采收日期', width: 120 },
+                            { field: 'inspect_result', title: '质检结果', width: 100, templet: function(d) {
+                                if (!d.inspect_result) return '';
+                                return d.inspect_result === '合格' ? '<span style="color:#2BA471;">合格</span>' : '<span style="color:#c92a2a;">不合格</span>';
+                            }},
+                            { field: 'status', title: '状态', width: 100, templet: function(d) {
+                                const map = { 0: '草稿', 1: '在库', 2: '已售出' };
+                                const color = d.status === 1 ? '#2BA471' : '#999';
+                                return `<span style="color:${color};">${map[d.status] || d.status}</span>`;
+                            }},
+                            { field: 'created_at', title: '创建时间', width: 180, templet: function(d) {
+                                return utils.formatTime(d.created_at);
+                            }},
+                            { title: '操作', toolbar: '#batchTpl', width: 220 }
+                        ]],
+                        data: data.list,
+                        page: {
+                            curr: page,
+                            count: data.total,
+                            limit: currentPageSize,
+                            layout: ['count', 'prev', 'page', 'next', 'skip'],
+                            jump: function(obj, first) {
+                                if (!first) {
+                                    loadTable(obj.curr);
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('加载表格失败', error);
+                }
+            }
+            
+            // 搜索表单
+            form.on('submit(search)', function(data) {
+                loadTable(1);
+                return false;
+            });
+            
+            // 新增按钮
+            document.getElementById('btnAdd').onclick = function() {
+                openForm(null);
+            };
+            
+            // 表格操作
+            table.on('tool(batchTable)', function(obj) {
+                const data = obj.data;
+                
+                if (obj.event === 'detail') {
+                    openDetail(data);
+                } else if (obj.event === 'edit') {
+                    openForm(data);
+                } else if (obj.event === 'delete') {
+                    layer.confirm('确定要删除该批次吗？', {icon: 3}, function(index) {
+                        deleteBatch(data.id);
+                        layer.close(index);
+                    });
+                }
+            });
+            
+            // 打开新增/编辑弹窗
+            function openForm(data) {
+                const title = data ? '编辑批次' : '新增批次';
+                
+                const html = `
+                    <div style="padding: 20px;">
+                        <form class="layui-form" lay-filter="batchForm">
+                            <div class="layui-tab" lay-filter="batchTab">
+                                <ul class="layui-tab-title">
+                                    <li class="layui-this">基础信息</li>
+                                    <li>加工信息</li>
+                                    <li>质检信息</li>
+                                    <li>包装仓储</li>
+                                </ul>
+                                <div class="layui-tab-content">
+                                    <div class="layui-tab-item layui-show">
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">产品选择 <span style="color:#c92a2a;">*</span></label>
+                                            <div class="layui-input-block">
+                                                <select name="productId" id="selectProduct">
+                                                    <option value="">请选择产品</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">批次号</label>
+                                            <div class="layui-input-block">
+                                                <input type="text" name="batchNo" value="${data?.batch_no || ''}" placeholder="自动生成" class="layui-input" readonly>
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">基地名称</label>
+                                            <div class="layui-input-block">
+                                                <input type="text" name="farmName" value="${data?.farm_name || ''}" placeholder="请输入基地名称" class="layui-input">
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">基地地址</label>
+                                            <div class="layui-input-block">
+                                                <input type="text" name="farmAddress" value="${data?.farm_address || ''}" placeholder="请输入基地地址" class="layui-input">
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">种植面积(亩)</label>
+                                            <div class="layui-input-block">
+                                                <input type="number" name="farmArea" value="${data?.farm_area || ''}" placeholder="请输入面积" class="layui-input">
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">种植日期</label>
+                                            <div class="layui-input-block">
+                                                <input type="date" name="plantDate" value="${data?.plant_date || ''}" class="layui-input">
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">采收日期</label>
+                                            <div class="layui-input-block">
+                                                <input type="date" name="harvestDate" value="${data?.harvest_date || ''}" class="layui-input">
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">采收数量(kg)</label>
+                                            <div class="layui-input-block">
+                                                <input type="number" name="harvestQty" value="${data?.harvest_qty || ''}" placeholder="请输入数量" class="layui-input">
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">生长年限(年)</label>
+                                            <div class="layui-input-block">
+                                                <input type="number" name="growYears" value="${data?.grow_years || ''}" placeholder="请输入年限" class="layui-input">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="layui-tab-item">
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">加工工艺</label>
+                                            <div class="layui-input-block">
+                                                <input type="text" name="processMethod" value="${data?.process_method || ''}" placeholder="请输入加工工艺" class="layui-input">
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">加工日期</label>
+                                            <div class="layui-input-block">
+                                                <input type="date" name="processDate" value="${data?.process_date || ''}" class="layui-input">
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">加工单位</label>
+                                            <div class="layui-input-block">
+                                                <input type="text" name="processUnit" value="${data?.process_unit || ''}" placeholder="请输入加工单位" class="layui-input">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="layui-tab-item">
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">检验日期</label>
+                                            <div class="layui-input-block">
+                                                <input type="date" name="inspectDate" value="${data?.inspect_date || ''}" class="layui-input">
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">检验结果</label>
+                                            <div class="layui-input-block">
+                                                <select name="inspectResult">
+                                                    <option value="">请选择</option>
+                                                    <option value="合格" ${data?.inspect_result === '合格' ? 'selected' : ''}>合格</option>
+                                                    <option value="不合格" ${data?.inspect_result === '不合格' ? 'selected' : ''}>不合格</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">检验单位</label>
+                                            <div class="layui-input-block">
+                                                <input type="text" name="inspectUnit" value="${data?.inspect_unit || ''}" placeholder="请输入检验单位" class="layui-input">
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">检测报告</label>
+                                            <div class="layui-input-block">
+                                                <button type="button" class="layui-btn layui-btn-primary" id="uploadReportBtn">
+                                                    <i class="layui-icon layui-icon-upload-drag"></i> 上传报告
+                                                </button>
+                                                <span id="reportFileName" style="margin-left:10px;color:#666;">${data?.inspect_report || ''}</span>
+                                                <input type="hidden" name="inspectReport" value="${data?.inspect_report || ''}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="layui-tab-item">
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">包装规格</label>
+                                            <div class="layui-input-block">
+                                                <input type="text" name="packageSpec" value="${data?.package_spec || ''}" placeholder="请输入包装规格" class="layui-input">
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">包装数量</label>
+                                            <div class="layui-input-block">
+                                                <input type="number" name="packageQty" value="${data?.package_qty || ''}" placeholder="请输入包装数量" class="layui-input">
+                                            </div>
+                                        </div>
+                                        <div class="layui-form-item">
+                                            <label class="layui-form-label">仓储信息</label>
+                                            <div class="layui-input-block">
+                                                <textarea name="warehouseInfo" placeholder="请输入仓储信息" class="layui-textarea">${data?.warehouse_info || ''}</textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                
+                const index = layer.open({
+                    type: 1,
+                    title: title,
+                    content: html,
+                    area: ['680px', 'auto'],
+                    maxmin: true,
+                    success: async function() {
+                        element.init();
+                        
+                        // 加载产品选择
+                        const productRes = await api.get('/products');
+                        const products = productRes?.data?.list || [];
+                        const selectProduct = document.getElementById('selectProduct');
+                        selectProduct.innerHTML = '<option value="">请选择产品</option>' + products.map(p => `<option value="${p.id}" ${data?.product_id === p.id ? 'selected' : ''}>${p.name}</option>`).join('');
+                        
+                        form.render('select');
+                    },
+                    btn: ['保存', '取消'],
+                    yes: function() {
+                        const formData = form.val('batchForm');
+                        if (!formData.productId) {
+                            layer.msg('请选择产品', {icon: 2});
+                            return;
+                        }
+                        
+                        if (data) {
+                            updateBatch(data.id, formData);
+                        } else {
+                            createBatch(formData);
+                        }
+                        
+                        layer.close(index);
+                    }
+                });
+            }
+            
+            // 打开详情弹窗
+            function openDetail(data) {
+                const html = `
+                    <div style="padding: 20px;">
+                        <div class="layui-card" style="margin-bottom:20px; box-shadow:none;">
+                            <div class="layui-card-header" style="background:#f8f9fa; border-bottom:1px solid #eee;">基础信息</div>
+                            <div class="layui-card-body">
+                                <p><strong>批次号：</strong>${data.batch_no}</p>
+                                <p><strong>产品：</strong>${data.product_name}</p>
+                                <p><strong>产地：</strong>${data.origin}</p>
+                                <p><strong>采收日期：</strong>${data.harvest_date || ''}</p>
+                                <p><strong>质检结果：</strong>${data.inspect_result || ''}</p>
+                            </div>
+                        </div>
+                        <div class="layui-card" style="box-shadow:none;">
+                            <div class="layui-card-header" style="background:#f8f9fa; border-bottom:1px solid #eee;">溯源记录</div>
+                            <div class="layui-card-body">
+                                <div id="traceTimeline"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                layer.open({
+                    type: 1,
+                    title: '批次详情',
+                    content: html,
+                    area: ['680px', 'auto'],
+                    maxmin: true,
+                    success: async function() {
+                        await loadTraceRecords(data.id);
+                    }
+                });
+            }
+            
+            // 加载溯源记录
+            async function loadTraceRecords(batchId) {
+                try {
+                    const res = await api.get('/batches/' + batchId + '/trace-records');
+                    const records = res?.data || [];
+                    
+                    const timelineHtml = records.length > 0 ? renderTimeline(records) : '<p style="text-align:center; color:#999;">暂无溯源记录</p>';
+                    document.getElementById('traceTimeline').innerHTML = timelineHtml;
+                } catch (error) {
+                    console.error('加载溯源记录失败', error);
+                }
+            }
+            
+            // 渲染时间线
+            function renderTimeline(records) {
+                const stageNames = {
+                    plant: '种植', harvest: '采收', process: '加工', inspect: '检验', store: '仓储', transport: '运输', sale: '销售'
+                };
+                
+                return `
+                    <ul style="list-style:none; padding:0;">
+                        ${records.map((r, i) => `
+                            <li style="display:flex; padding:12px 0; border-bottom:1px solid #f0f0f0;">
+                                <div style="width:12px; height:12px; border-radius:50%; background:#2BA471; margin:6px 16px 0 0; flex-shrink:0;"></div>
+                                <div style="flex:1;">
+                                    <h4 style="font-size:16px; color:#333; margin:0 0 6px 0;">${stageNames[r.stage] || r.stage}</h4>
+                                    <p style="font-size:12px; color:#999; margin:0 0 8px 0;">${utils.formatTime(r.operate_time)}</p>
+                                    ${r.detail ? `<p style="font-size:14px; color:#666; margin:0;">${typeof r.detail === 'string' ? r.detail : JSON.stringify(r.detail)}</p>` : ''}
+                                </div>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+            }
+            
+            // 新增批次
+            async function createBatch(formData) {
+                try {
+                    const res = await api.post('/batches', {
+                        productId: formData.productId,
+                        farmName: formData.farmName,
+                        farmAddress: formData.farmAddress,
+                        farmArea: formData.farmArea,
+                        plantDate: formData.plantDate,
+                        harvestDate: formData.harvestDate,
+                        harvestQty: formData.harvestQty,
+                        growYears: formData.growYears,
+                        processMethod: formData.processMethod,
+                        processDate: formData.processDate,
+                        processUnit: formData.processUnit,
+                        inspectDate: formData.inspectDate,
+                        inspectResult: formData.inspectResult,
+                        inspectReport: formData.inspectReport,
+                        inspectUnit: formData.inspectUnit,
+                        packageSpec: formData.packageSpec,
+                        packageQty: formData.packageQty,
+                        warehouseInfo: formData.warehouseInfo
+                    });
+                    
+                    if (res && res.code === 200) {
+                        layer.msg('创建成功', {icon: 1});
+                        loadTable(1);
+                    }
+                } catch (error) {
+                    console.error('创建失败', error);
+                    layer.msg('创建失败', {icon: 2});
+                }
+            }
+            
+            // 更新批次
+            async function updateBatch(id, formData) {
+                try {
+                    const res = await api.put('/batches/' + id, {
+                        productId: formData.productId,
+                        farmName: formData.farmName,
+                        farmAddress: formData.farmAddress,
+                        farmArea: formData.farmArea,
+                        plantDate: formData.plantDate,
+                        harvestDate: formData.harvestDate,
+                        harvestQty: formData.harvestQty,
+                        growYears: formData.growYears,
+                        processMethod: formData.processMethod,
+                        processDate: formData.processDate,
+                        processUnit: formData.processUnit,
+                        inspectDate: formData.inspectDate,
+                        inspectResult: formData.inspectResult,
+                        inspectReport: formData.inspectReport,
+                        inspectUnit: formData.inspectUnit,
+                        packageSpec: formData.packageSpec,
+                        packageQty: formData.packageQty,
+                        warehouseInfo: formData.warehouseInfo
+                    });
+                    
+                    if (res && res.code === 200) {
+                        layer.msg('更新成功', {icon: 1});
+                        loadTable(currentPage);
+                    }
+                } catch (error) {
+                    console.error('更新失败', error);
+                    layer.msg('更新失败', {icon: 2});
+                }
+            }
+            
+            // 删除批次
+            async function deleteBatch(id) {
+                try {
+                    const res = await api.delete('/batches/' + id);
+                    if (res && res.code === 200) {
+                        layer.msg('删除成功', {icon: 1});
+                        loadTable(currentPage);
+                    }
+                } catch (error) {
+                    console.error('删除失败', error);
+                    layer.msg('删除失败', {icon: 2});
+                }
+            }
+            
+            // 初始化
+            loadProducts();
+            loadTable(1);
+        });
+    </script>
+</body>
+</html>

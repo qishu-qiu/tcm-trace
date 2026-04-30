@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>产品管理 - 中药材溯源管理平台</title>
+    <link rel="stylesheet" href="https://unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f5f7fa; padding: 20px; }
+        .layui-card { border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+        .layui-card-header { font-size: 16px; font-weight: 600; color: #333; border-bottom: 1px solid #eee; }
+        .search-bar { padding: 16px; background: #fff; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        .search-bar .layui-form-item { margin-bottom: 0; margin-right: 0; }
+        .search-bar .layui-btn { margin-left: 10px; }
+        .table-container { padding: 16px; }
+    </style>
+</head>
+<body>
+    <div class="layui-card">
+        <div class="search-bar">
+            <form class="layui-form" lay-filter="searchForm">
+                <div class="layui-form-item">
+                    <label class="layui-form-label">关键词</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="keyword" placeholder="请输入产品名称" autocomplete="off" class="layui-input">
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">分类</label>
+                    <div class="layui-input-inline">
+                        <select name="category">
+                            <option value="">全部</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <button class="layui-btn layui-btn-primary" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                    <button type="button" class="layui-btn" id="btnAdd">
+                        <i class="layui-icon layui-icon-add-1"></i> 新增产品
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="table-container">
+            <table id="productTable" lay-filter="productTable"></table>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script src="/assets/admin/js/config.js"></script>
+    <script src="/assets/admin/js/common.js"></script>
+    <script type="text/html" id="productTpl">
+        <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+        <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="delete">删除</a>
+    </script>
+    <script>
+        layui.use(['table', 'layer', 'form', 'upload'], function(){
+            const table = layui.table;
+            const layer = layui.layer;
+            const form = layui.form;
+            const upload = layui.upload;
+            
+            let currentPage = 1;
+            let currentPageSize = 20;
+            
+            // 加载分类
+            async function loadCategories() {
+                try {
+                    const res = await api.get('/products/categories');
+                    const categories = res?.data || [];
+                    
+                    const select = document.querySelector('select[name="category"]');
+                    select.innerHTML = '<option value="">全部</option>' + categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+                    form.render('select');
+                } catch (error) {
+                    console.error('加载分类失败', error);
+                }
+            }
+            
+            // 加载表格
+            async function loadTable(page = 1) {
+                currentPage = page;
+                const keyword = document.querySelector('input[name="keyword"]').value;
+                const category = document.querySelector('select[name="category"]').value;
+                
+                try {
+                    const res = await api.get('/products', {
+                        page: page,
+                        pageSize: currentPageSize,
+                        keyword: keyword,
+                        category: category
+                    });
+                    
+                    const data = res?.data || { list: [], total: 0 };
+                    
+                    table.render({
+                        elem: '#productTable',
+                        cols: [[
+                            { field: 'id', title: 'ID', width: 80, sort: true },
+                            { field: 'name', title: '产品名称', width: 180 },
+                            { field: 'origin', title: '产地', width: 120 },
+                            { field: 'category', title: '分类', width: 120 },
+                            { field: 'quality_grade', title: '等级', width: 100 },
+                            { field: 'status', title: '状态', width: 80, templet: function(d) {
+                                return d.status === 1 ? '<span style="color:#2BA471;">正常</span>' : '<span style="color:#999;">停用</span>';
+                            }},
+                            { field: 'created_at', title: '创建时间', width: 180, templet: function(d) {
+                                return utils.formatTime(d.created_at);
+                            }},
+                            { title: '操作', toolbar: '#productTpl', width: 150 }
+                        ]],
+                        data: data.list,
+                        page: {
+                            curr: page,
+                            count: data.total,
+                            limit: currentPageSize,
+                            layout: ['count', 'prev', 'page', 'next', 'skip'],
+                            jump: function(obj, first) {
+                                if (!first) {
+                                    loadTable(obj.curr);
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('加载表格失败', error);
+                }
+            }
+            
+            // 搜索表单
+            form.on('submit(search)', function(data) {
+                loadTable(1);
+                return false;
+            });
+            
+            // 新增按钮
+            document.getElementById('btnAdd').onclick = function() {
+                openForm(null);
+            };
+            
+            // 表格操作
+            table.on('tool(productTable)', function(obj) {
+                const data = obj.data;
+                
+                if (obj.event === 'edit') {
+                    openForm(data);
+                } else if (obj.event === 'delete') {
+                    layer.confirm('确定要删除该产品吗？', {icon: 3}, function(index) {
+                        deleteProduct(data.id);
+                        layer.close(index);
+                    });
+                }
+            });
+            
+            // 打开新增/编辑弹窗
+            let uploadImgUrl = '';
+            function openForm(data) {
+                const title = data ? '编辑产品' : '新增产品';
+                
+                uploadImgUrl = data?.image_url || '';
+                
+                const html = `
+                    <div style="padding: 20px;">
+                        <form class="layui-form" lay-filter="productForm">
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">产品名称 <span style="color:#c92a2a;">*</span></label>
+                                <div class="layui-input-block">
+                                    <input type="text" name="name" value="${data?.name || ''}" lay-verify="required" placeholder="请输入产品名称" class="layui-input">
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">别名</label>
+                                <div class="layui-input-block">
+                                    <input type="text" name="alias" value="${data?.alias || ''}" placeholder="请输入别名" class="layui-input">
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">产地</label>
+                                <div class="layui-input-block">
+                                    <input type="text" name="origin" value="${data?.origin || ''}" placeholder="请输入产地" class="layui-input">
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">分类</label>
+                                <div class="layui-input-block">
+                                    <select name="category">
+                                        <option value="">请选择分类</option>
+                                        <option value="根类" ${data?.category === '根类' ? 'selected' : ''}>根类</option>
+                                        <option value="根茎类" ${data?.category === '根茎类' ? 'selected' : ''}>根茎类</option>
+                                        <option value="花类" ${data?.category === '花类' ? 'selected' : ''}>花类</option>
+                                        <option value="果实种子类" ${data?.category === '果实种子类' ? 'selected' : ''}>果实种子类</option>
+                                        <option value="全草类" ${data?.category === '全草类' ? 'selected' : ''}>全草类</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">规格</label>
+                                <div class="layui-input-block">
+                                    <input type="text" name="specification" value="${data?.specification || ''}" placeholder="请输入规格" class="layui-input">
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">等级</label>
+                                <div class="layui-input-block">
+                                    <select name="qualityGrade">
+                                        <option value="">请选择等级</option>
+                                        <option value="一等品" ${data?.quality_grade === '一等品' ? 'selected' : ''}>一等品</option>
+                                        <option value="二等品" ${data?.quality_grade === '二等品' ? 'selected' : ''}>二等品</option>
+                                        <option value="三等品" ${data?.quality_grade === '三等品' ? 'selected' : ''}>三等品</option>
+                                        <option value="统货" ${data?.quality_grade === '统货' ? 'selected' : ''}>统货</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">产品图片</label>
+                                <div class="layui-input-block">
+                                    <button type="button" class="layui-btn layui-btn-primary" id="uploadImgBtn">
+                                        <i class="layui-icon layui-icon-upload-drag"></i> 上传图片
+                                    </button>
+                                    <div id="uploadImgPreview" style="margin-top: 10px; display: ${uploadImgUrl ? 'block' : 'none'};"></div>
+                                    <input type="hidden" name="imageUrl" value="${uploadImgUrl}">
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">描述</label>
+                                <div class="layui-input-block">
+                                    <textarea name="description" placeholder="请输入产品描述" class="layui-textarea">${data?.description || ''}</textarea>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                
+                const index = layer.open({
+                    type: 1,
+                    title: title,
+                    content: html,
+                    area: ['580px', 'auto'],
+                    maxmin: true,
+                    success: function() {
+                        form.render('select');
+                        
+                        // 图片上传
+                        upload.render({
+                            elem: '#uploadImgBtn',
+                            url: '/api/upload/image',
+                            accept: 'images',
+                            acceptMime: 'image/*',
+                            size: 5120,
+                            done: function(res) {
+                                uploadImgUrl = res?.data?.url;
+                                document.querySelector('input[name="imageUrl"]').value = uploadImgUrl;
+                                document.getElementById('uploadImgPreview').innerHTML = '<img src="' + uploadImgUrl + '" style="width:100px; height:100px; object-fit:cover; border-radius:4px;">';
+                                document.getElementById('uploadImgPreview').style.display = 'block';
+                            }
+                        });
+                        
+                        // 图片预览
+                        if (uploadImgUrl) {
+                            document.getElementById('uploadImgPreview').innerHTML = '<img src="' + uploadImgUrl + '" style="width:100px; height:100px; object-fit:cover; border-radius:4px;">';
+                        }
+                    },
+                    btn: ['保存', '取消'],
+                    yes: function() {
+                        const formData = form.val('productForm');
+                        if (!formData.name) {
+                            layer.msg('请输入产品名称', {icon: 2});
+                            return;
+                        }
+                        
+                        if (data) {
+                            updateProduct(data.id, formData);
+                        } else {
+                            createProduct(formData);
+                        }
+                        
+                        layer.close(index);
+                    }
+                });
+            }
+            
+            // 新增产品
+            async function createProduct(formData) {
+                try {
+                    const res = await api.post('/products', {
+                        name: formData.name,
+                        alias: formData.alias,
+                        origin: formData.origin,
+                        category: formData.category,
+                        specification: formData.specification,
+                        qualityGrade: formData.qualityGrade,
+                        image: formData.imageUrl,
+                        description: formData.description
+                    });
+                    
+                    if (res && res.code === 200) {
+                        layer.msg('创建成功', {icon: 1});
+                        loadTable(1);
+                    }
+                } catch (error) {
+                    console.error('创建失败', error);
+                    layer.msg('创建失败', {icon: 2});
+                }
+            }
+            
+            // 更新产品
+            async function updateProduct(id, formData) {
+                try {
+                    const res = await api.put('/products/' + id, {
+                        name: formData.name,
+                        alias: formData.alias,
+                        origin: formData.origin,
+                        category: formData.category,
+                        specification: formData.specification,
+                        qualityGrade: formData.qualityGrade,
+                        image: formData.imageUrl,
+                        description: formData.description
+                    });
+                    
+                    if (res && res.code === 200) {
+                        layer.msg('更新成功', {icon: 1});
+                        loadTable(currentPage);
+                    }
+                } catch (error) {
+                    console.error('更新失败', error);
+                    layer.msg('更新失败', {icon: 2});
+                }
+            }
+            
+            // 删除产品
+            async function deleteProduct(id) {
+                try {
+                    const res = await api.delete('/products/' + id);
+                    if (res && res.code === 200) {
+                        layer.msg('删除成功', {icon: 1});
+                        loadTable(currentPage);
+                    }
+                } catch (error) {
+                    console.error('删除失败', error);
+                    layer.msg('删除失败', {icon: 2});
+                }
+            }
+            
+            // 初始化
+            loadCategories();
+            loadTable(1);
+        });
+    </script>
+</body>
+</html>

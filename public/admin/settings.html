@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统设置 - 中药材溯源管理平台</title>
+    <link rel="stylesheet" href="https://unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f5f7fa; padding: 20px; }
+        .layui-card { border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+        .layui-card-header { font-size: 16px; font-weight: 600; color: #333; border-bottom: 1px solid #eee; }
+        .layui-card-body { padding: 20px; }
+        .layui-tab { margin: 0; }
+        .layui-tab-title { border-bottom: 1px solid #eee; background: #fff; }
+        .layui-tab-title li { padding: 0 30px; }
+        .layui-tab-title li.layui-this { color: #2BA471; border-bottom-color: #2BA471; }
+        .form-section { max-width: 600px; }
+        .logo-preview { width: 100px; height: 100px; border: 1px dashed #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; overflow: hidden; }
+        .logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .logo-preview .placeholder { color: #999; font-size: 12px; text-align: center; }
+        .usage-section { margin-bottom: 24px; }
+        .usage-title { font-size: 14px; color: #666; margin-bottom: 8px; }
+        .usage-bar { height: 16px; background: #f0f0f0; border-radius: 8px; overflow: hidden; margin-bottom: 6px; }
+        .usage-bar-inner { height: 100%; background: linear-gradient(90deg, #2BA471 0%, #667eea 100%); border-radius: 8px; transition: width 0.6s; }
+        .usage-text { font-size: 12px; color: #999; }
+        .plan-card { background: linear-gradient(135deg, #667eea 0%, #2BA471 100%); color: #fff; padding: 24px; border-radius: 12px; margin-bottom: 24px; }
+        .plan-name { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+        .plan-expires { font-size: 14px; opacity: 0.9; }
+        .table-container { padding: 0; }
+    </style>
+</head>
+<body>
+    <div class="layui-card">
+        <div class="layui-tab layui-tab-brief" lay-filter="settingsTab">
+            <ul class="layui-tab-title">
+                <li class="layui-this">企业信息</li>
+                <li>用户管理</li>
+                <li>套餐信息</li>
+            </ul>
+            <div class="layui-tab-content">
+                <!-- 企业信息 -->
+                <div class="layui-tab-item layui-show">
+                    <div class="layui-card-body">
+                        <form class="layui-form form-section" lay-filter="tenantForm">
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">Logo</label>
+                                <div class="layui-input-block">
+                                    <div class="logo-preview" id="logoPreview">
+                                        <div class="placeholder">暂无Logo</div>
+                                    </div>
+                                    <button type="button" class="layui-btn layui-btn-primary" id="uploadLogoBtn">
+                                        <i class="layui-icon layui-icon-upload-drag"></i> 上传Logo
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">企业名称</label>
+                                <div class="layui-input-block">
+                                    <input type="text" name="name" placeholder="请输入企业名称" class="layui-input">
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">联系人</label>
+                                <div class="layui-input-block">
+                                    <input type="text" name="contactName" placeholder="请输入联系人" class="layui-input">
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">联系电话</label>
+                                <div class="layui-input-block">
+                                    <input type="text" name="contactPhone" placeholder="请输入联系电话" class="layui-input">
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">企业地址</label>
+                                <div class="layui-input-block">
+                                    <textarea name="address" placeholder="请输入企业地址" class="layui-textarea"></textarea>
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <div class="layui-input-block">
+                                    <button class="layui-btn" lay-submit lay-filter="saveTenant">保存</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- 用户管理 -->
+                <div class="layui-tab-item">
+                    <div class="layui-card-body">
+                        <div style="margin-bottom: 16px;">
+                            <button class="layui-btn" id="btnAddUser">
+                                <i class="layui-icon layui-icon-add-1"></i> 新增用户
+                            </button>
+                        </div>
+                        <table id="userTable" lay-filter="userTable"></table>
+                    </div>
+                </div>
+                
+                <!-- 套餐信息 -->
+                <div class="layui-tab-item">
+                    <div class="layui-card-body">
+                        <div class="plan-card">
+                            <div class="plan-name" id="planName">免费版</div>
+                            <div class="plan-expires" id="planExpires">有效期：永久</div>
+                        </div>
+                        
+                        <div class="usage-section">
+                            <div class="usage-title">产品数量</div>
+                            <div class="usage-bar"><div id="productUsage" class="usage-bar-inner" style="width: 0%"></div></div>
+                            <div class="usage-text"><span id="productUsed">0</span> / <span id="productLimit">100</span></div>
+                        </div>
+                        
+                        <div class="usage-section">
+                            <div class="usage-title">二维码数量</div>
+                            <div class="usage-bar"><div id="qrcodeUsage" class="usage-bar-inner" style="width: 0%"></div></div>
+                            <div class="usage-text"><span id="qrcodeUsed">0</span> / <span id="qrcodeLimit">1000</span></div>
+                        </div>
+                        
+                        <div class="usage-section">
+                            <div class="usage-title">用户数量</div>
+                            <div class="usage-bar"><div id="userUsage" class="usage-bar-inner" style="width: 0%"></div></div>
+                            <div class="usage-text"><span id="userUsed">0</span> / <span id="userLimit">10</span></div>
+                        </div>
+                        
+                        <div style="margin-top: 24px;">
+                            <button class="layui-btn layui-btn-lg">升级套餐</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script src="/assets/admin/js/config.js"></script>
+    <script src="/assets/admin/js/common.js"></script>
+    <script type="text/html" id="userTpl">
+        <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+        <a class="layui-btn layui-btn-normal layui-btn-xs" lay-event="resetPwd">重置密码</a>
+        <a class="layui-btn layui-btn-warm layui-btn-xs" lay-event="toggleStatus">启用/禁用</a>
+    </script>
+    <script>
+        layui.use(['table', 'layer', 'form', 'element', 'upload'], function(){
+            const table = layui.table;
+            const layer = layui.layer;
+            const form = layui.form;
+            const element = layui.element;
+            const upload = layui.upload;
+            
+            let tenantData = null;
+            
+            // 加载租户信息
+            async function loadTenant() {
+                try {
+                    const res = await api.get('/tenant');
+                    tenantData = res?.data;
+                    
+                    if (tenantData) {
+                        form.val('tenantForm', {
+                            name: tenantData.name || '',
+                            contactName: tenantData.contact_name || '',
+                            contactPhone: tenantData.contact_phone || '',
+                            address: tenantData.address || ''
+                        });
+                        
+                        if (tenantData.logo) {
+                            document.getElementById('logoPreview').innerHTML = `<img src="${tenantData.logo}" alt="Logo">`;
+                        }
+                    }
+                } catch (error) {
+                    console.error('加载租户信息失败', error);
+                }
+            }
+            
+            // 加载用户列表
+            async function loadUsers() {
+                try {
+                    const res = await api.get('/users');
+                    const data = res?.data || { list: [], total: 0 };
+                    
+                    table.render({
+                        elem: '#userTable',
+                        cols: [[
+                            { field: 'id', title: 'ID', width: 80 },
+                            { field: 'username', title: '用户名', width: 120 },
+                            { field: 'real_name', title: '姓名', width: 120 },
+                            { field: 'role', title: '角色', width: 100, templet: function(d) {
+                                const map = { admin: '管理员', staff: '员工', viewer: '访客' };
+                                return map[d.role] || d.role;
+                            }},
+                            { field: 'status', title: '状态', width: 80, templet: function(d) {
+                                return d.status === 1 ? '<span style="color:#2BA471;">正常</span>' : '<span style="color:#999;">禁用</span>';
+                            }},
+                            { field: 'last_login_at', title: '最后登录', width: 180, templet: function(d) {
+                                return utils.formatTime(d.last_login_at);
+                            }},
+                            { title: '操作', toolbar: '#userTpl', width: 200 }
+                        ]],
+                        data: data.list
+                    });
+                } catch (error) {
+                    console.error('加载用户失败', error);
+                }
+            }
+            
+            // 加载套餐使用情况
+            async function loadUsage() {
+                try {
+                    const res = await api.get('/tenant/usage');
+                    const data = res?.data;
+                    
+                    if (data) {
+                        const planNames = { free: '免费版', basic: '基础版', pro: '专业版', enterprise: '企业版' };
+                        document.getElementById('planName').textContent = planNames[data.plan] || data.plan;
+                        document.getElementById('planExpires').textContent = data.expiresAt ? `有效期至：${data.expiresAt}` : '有效期：永久';
+                        
+                        document.getElementById('productUsed').textContent = data.products.used;
+                        document.getElementById('productLimit').textContent = data.products.limit;
+                        document.getElementById('productUsage').style.width = data.products.percent + '%';
+                        
+                        document.getElementById('qrcodeUsed').textContent = data.qrcodes.used;
+                        document.getElementById('qrcodeLimit').textContent = data.qrcodes.limit;
+                        document.getElementById('qrcodeUsage').style.width = data.qrcodes.percent + '%';
+                        
+                        document.getElementById('userUsed').textContent = data.users.used;
+                        document.getElementById('userLimit').textContent = data.users.limit;
+                        document.getElementById('userUsage').style.width = data.users.percent + '%';
+                    }
+                } catch (error) {
+                    console.error('加载使用情况失败', error);
+                }
+            }
+            
+            // 保存租户信息
+            form.on('submit(saveTenant)', async function(data) {
+                try {
+                    const res = await api.put('/tenant', {
+                        name: data.field.name,
+                        contactName: data.field.contactName,
+                        contactPhone: data.field.contactPhone,
+                        address: data.field.address
+                    });
+                    
+                    if (res && res.code === 200) {
+                        layer.msg('保存成功', {icon: 1});
+                    }
+                } catch (error) {
+                    layer.msg('保存失败', {icon: 2});
+                }
+                return false;
+            });
+            
+            // 上传Logo
+            upload.render({
+                elem: '#uploadLogoBtn',
+                url: '/api/tenant/upload-logo',
+                accept: 'images',
+                acceptMime: 'image/*',
+                size: 2048,
+                done: function(res) {
+                    if (res.code === 200) {
+                        document.getElementById('logoPreview').innerHTML = `<img src="${res.data.url}" alt="Logo">`;
+                        layer.msg('上传成功', {icon: 1});
+                    }
+                }
+            });
+            
+            // 新增用户
+            document.getElementById('btnAddUser').onclick = function() {
+                layer.open({
+                    type: 1,
+                    title: '新增用户',
+                    content: `
+                        <div style="padding: 20px;">
+                            <form class="layui-form" lay-filter="userForm">
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">用户名 <span style="color:#c92a2a;">*</span></label>
+                                    <div class="layui-input-block">
+                                        <input type="text" name="username" lay-verify="required" placeholder="请输入用户名" class="layui-input">
+                                    </div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">密码 <span style="color:#c92a2a;">*</span></label>
+                                    <div class="layui-input-block">
+                                        <input type="password" name="password" lay-verify="required" placeholder="请输入密码" class="layui-input">
+                                    </div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">姓名</label>
+                                    <div class="layui-input-block">
+                                        <input type="text" name="realName" placeholder="请输入姓名" class="layui-input">
+                                    </div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">角色</label>
+                                    <div class="layui-input-block">
+                                        <select name="role">
+                                            <option value="staff">员工</option>
+                                            <option value="viewer">访客</option>
+                                            <option value="admin">管理员</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    `,
+                    area: ['480px', 'auto'],
+                    btn: ['保存', '取消'],
+                    success: function() {
+                        form.render('select');
+                    },
+                    yes: async function(index) {
+                        const formData = form.val('userForm');
+                        if (!formData.username || !formData.password) {
+                            layer.msg('请填写必填项', {icon: 2});
+                            return;
+                        }
+                        
+                        try {
+                            const res = await api.post('/users', formData);
+                            if (res && res.code === 200) {
+                                layer.msg('创建成功', {icon: 1});
+                                loadUsers();
+                                layer.close(index);
+                            }
+                        } catch (error) {
+                            layer.msg('创建失败', {icon: 2});
+                        }
+                    }
+                });
+            };
+            
+            // 表格操作
+            table.on('tool(userTable)', function(obj) {
+                const data = obj.data;
+                
+                if (obj.event === 'edit') {
+                    layer.msg('编辑功能开发中');
+                } else if (obj.event === 'resetPwd') {
+                    layer.confirm('确定要重置该用户的密码吗？', {icon: 3}, async function(index) {
+                        try {
+                            const res = await api.put('/users/' + data.id + '/reset-password');
+                            if (res && res.code === 200) {
+                                layer.alert('新密码：<strong>' + res.data.newPassword + '</strong><br>请妥善保管', {
+                                    title: '密码已重置',
+                                    icon: 1
+                                });
+                            }
+                        } catch (error) {
+                            layer.msg('重置失败', {icon: 2});
+                        }
+                        layer.close(index);
+                    });
+                } else if (obj.event === 'toggleStatus') {
+                    const newStatus = data.status === 1 ? 0 : 1;
+                    layer.confirm(`确定要${newStatus === 1 ? '启用' : '禁用'}该用户吗？`, {icon: 3}, async function(index) {
+                        try {
+                            const res = await api.put('/users/' + data.id + '/status', { status: newStatus });
+                            if (res && res.code === 200) {
+                                layer.msg('操作成功', {icon: 1});
+                                loadUsers();
+                            }
+                        } catch (error) {
+                            layer.msg('操作失败', {icon: 2});
+                        }
+                        layer.close(index);
+                    });
+                }
+            });
+            
+            // 初始化
+            loadTenant();
+            loadUsers();
+            loadUsage();
+        });
+    </script>
+</body>
+</html>

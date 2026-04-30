@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二维码管理 - 中药材溯源管理平台</title>
+    <link rel="stylesheet" href="https://unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f5f7fa; padding: 20px; }
+        .layui-card { border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+        .layui-card-header { font-size: 16px; font-weight: 600; color: #333; border-bottom: 1px solid #eee; }
+        .search-bar { padding: 16px; background: #fff; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        .search-bar .layui-form-item { margin-bottom: 0; margin-right: 0; }
+        .search-bar .layui-btn { margin-left: 10px; }
+        .table-container { padding: 16px; }
+        .batch-ops { margin-bottom: 16px; }
+        .batch-ops button { margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="layui-card">
+        <div class="search-bar">
+            <form class="layui-form" lay-filter="searchForm">
+                <div class="layui-form-item">
+                    <label class="layui-form-label">批次</label>
+                    <div class="layui-input-inline">
+                        <select name="batchId">
+                            <option value="">全部</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">状态</label>
+                    <div class="layui-input-inline">
+                        <select name="status">
+                            <option value="">全部</option>
+                            <option value="0">已生成</option>
+                            <option value="1">已打印</option>
+                            <option value="2">已激活</option>
+                            <option value="3">已失效</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <button class="layui-btn layui-btn-primary" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                    <button type="button" class="layui-btn" id="btnGenerate">
+                        <i class="layui-icon layui-icon-add-1"></i> 生成二维码
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="table-container">
+            <div class="batch-ops">
+                <button class="layui-btn layui-btn-xs layui-btn-normal" id="btnBatchPrint">批量打印</button>
+                <button class="layui-btn layui-btn-xs layui-btn-warm" id="btnBatchActivate">批量激活</button>
+                <button class="layui-btn layui-btn-xs layui-btn-danger" id="btnBatchDisable">批量失效</button>
+            </div>
+            <table id="qrcodeTable" lay-filter="qrcodeTable"></table>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script src="/assets/admin/js/config.js"></script>
+    <script src="/assets/admin/js/common.js"></script>
+    <script type="text/html" id="qrcodeTpl">
+        <a class="layui-btn layui-btn-xs" lay-event="detail">查看</a>
+        <a class="layui-btn layui-btn-normal layui-btn-xs" lay-event="download">下载</a>
+        <a class="layui-btn layui-btn-xs" lay-event="print">打印</a>
+        <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="disable">禁用</a>
+    </script>
+    <script>
+        layui.use(['table', 'layer', 'form'], function(){
+            const table = layui.table;
+            const layer = layui.layer;
+            const form = layui.form;
+            
+            let currentPage = 1;
+            let currentPageSize = 20;
+            let selectedIds = [];
+            
+            // 加载批次列表
+            async function loadBatches() {
+                try {
+                    const res = await api.get('/batches', { status: 1 });
+                    const batches = res?.data?.list || [];
+                    
+                    const select = document.querySelector('select[name="batchId"]');
+                    select.innerHTML = '<option value="">全部</option>' + batches.map(b => `<option value="${b.id}">${b.batch_no} - ${b.product_name}</option>`).join('');
+                    form.render('select');
+                } catch (error) {
+                    console.error('加载批次失败', error);
+                }
+            }
+            
+            // 加载表格
+            async function loadTable(page = 1) {
+                currentPage = page;
+                const batchId = document.querySelector('select[name="batchId"]').value;
+                const status = document.querySelector('select[name="status"]').value;
+                
+                try {
+                    const res = await api.get('/qrcodes', {
+                        page: page,
+                        pageSize: currentPageSize,
+                        batchId: batchId,
+                        status: status
+                    });
+                    
+                    const data = res?.data || { list: [], total: 0 };
+                    
+                    table.render({
+                        elem: '#qrcodeTable',
+                        cols: [[
+                            { type: 'checkbox', width: 60 },
+                            { field: 'id', title: 'ID', width: 80, sort: true },
+                            { field: 'qr_serial', title: '序列号', width: 200 },
+                            { field: 'product_name', title: '产品名称', width: 150 },
+                            { field: 'batch_no', title: '批次号', width: 180 },
+                            { field: 'status', title: '状态', width: 100, templet: function(d) {
+                                const map = { 0: '已生成', 1: '已打印', 2: '已激活', 3: '已失效' };
+                                const color = d.status === 1 || d.status === 2 ? '#2BA471' : '#999';
+                                return `<span style="color:${color};">${map[d.status] || d.status}</span>`;
+                            }},
+                            { field: 'scan_count', title: '扫码次数', width: 100 },
+                            { field: 'created_at', title: '创建时间', width: 180, templet: function(d) {
+                                return utils.formatTime(d.created_at);
+                            }},
+                            { title: '操作', toolbar: '#qrcodeTpl', width: 240 }
+                        ]],
+                        data: data.list,
+                        page: {
+                            curr: page,
+                            count: data.total,
+                            limit: currentPageSize,
+                            layout: ['count', 'prev', 'page', 'next', 'skip'],
+                            jump: function(obj, first) {
+                                if (!first) {
+                                    loadTable(obj.curr);
+                                }
+                            }
+                        },
+                        done: function() {
+                            selectedIds = [];
+                        }
+                    });
+                } catch (error) {
+                    console.error('加载表格失败', error);
+                }
+            }
+            
+            // 表格选择
+            table.on('checkbox(qrcodeTable)', function(obj) {
+                if (obj.type === 'all') {
+                    selectedIds = obj.data.map(d => d.id);
+                } else if (obj.checked) {
+                    selectedIds.push(obj.data.id);
+                } else {
+                    selectedIds = selectedIds.filter(id => id !== obj.data.id);
+                }
+            });
+            
+            // 搜索表单
+            form.on('submit(search)', function(data) {
+                loadTable(1);
+                return false;
+            });
+            
+            // 生成二维码
+            document.getElementById('btnGenerate').onclick = function() {
+                const html = `
+                    <div style="padding: 20px;">
+                        <form class="layui-form" lay-filter="generateForm">
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">选择批次 <span style="color:#c92a2a;">*</span></label>
+                                <div class="layui-input-block">
+                                    <select name="batchId" id="selectBatch">
+                                        <option value="">请选择批次</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">生成数量 <span style="color:#c92a2a;">*</span></label>
+                                <div class="layui-input-block">
+                                    <input type="number" name="quantity" value="1" min="1" max="100" lay-verify="required|number" placeholder="1-100" class="layui-input">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                
+                const index = layer.open({
+                    type: 1,
+                    title: '生成二维码',
+                    content: html,
+                    area: ['480px', 'auto'],
+                    success: async function() {
+                        const batchRes = await api.get('/batches', { status: 1 });
+                        const batches = batchRes?.data?.list || [];
+                        const selectBatch = document.getElementById('selectBatch');
+                        selectBatch.innerHTML = '<option value="">请选择批次</option>' + batches.map(b => `<option value="${b.id}">${b.batch_no} - ${b.product_name}</option>`).join('');
+                        form.render('select');
+                    },
+                    btn: ['确定', '取消'],
+                    yes: async function() {
+                        const formData = form.val('generateForm');
+                        if (!formData.batchId) {
+                            layer.msg('请选择批次', {icon: 2});
+                            return;
+                        }
+                        if (!formData.quantity || formData.quantity < 1 || formData.quantity > 100) {
+                            layer.msg('数量必须在1-100之间', {icon: 2});
+                            return;
+                        }
+                        
+                        try {
+                            const res = await api.post('/qrcodes/generate', {
+                                batchId: formData.batchId,
+                                quantity: formData.quantity
+                            });
+                            
+                            if (res && res.code === 200) {
+                                layer.msg('生成成功', {icon: 1});
+                                loadTable(1);
+                                layer.close(index);
+                            }
+                        } catch (error) {
+                            console.error('生成失败', error);
+                            layer.msg('生成失败', {icon: 2});
+                        }
+                    }
+                });
+            };
+            
+            // 批量打印
+            document.getElementById('btnBatchPrint').onclick = function() {
+                if (selectedIds.length === 0) {
+                    layer.msg('请先选择要打印的二维码', {icon: 2});
+                    return;
+                }
+                
+                printQrcodes(selectedIds);
+            };
+            
+            // 批量激活
+            document.getElementById('btnBatchActivate').onclick = function() {
+                if (selectedIds.length === 0) {
+                    layer.msg('请先选择要激活的二维码', {icon: 2});
+                    return;
+                }
+                
+                layer.confirm(`确定要激活选中的 ${selectedIds.length} 个二维码吗？`, {icon: 3}, async function(index) {
+                    try {
+                        const successCount = 0;
+                        for (const id of selectedIds) {
+                            await api.put('/qrcodes/' + id + '/status', { status: 2 });
+                        }
+                        layer.msg('激活成功', {icon: 1});
+                        loadTable(currentPage);
+                        layer.close(index);
+                    } catch (error) {
+                        layer.msg('激活失败', {icon: 2});
+                    }
+                });
+            };
+            
+            // 批量失效
+            document.getElementById('btnBatchDisable').onclick = function() {
+                if (selectedIds.length === 0) {
+                    layer.msg('请先选择要失效的二维码', {icon: 2});
+                    return;
+                }
+                
+                layer.confirm(`确定要失效选中的 ${selectedIds.length} 个二维码吗？`, {icon: 3}, async function(index) {
+                    try {
+                        for (const id of selectedIds) {
+                            await api.put('/qrcodes/' + id + '/disable');
+                        }
+                        layer.msg('操作成功', {icon: 1});
+                        loadTable(currentPage);
+                        layer.close(index);
+                    } catch (error) {
+                        layer.msg('操作失败', {icon: 2});
+                    }
+                });
+            };
+            
+            // 表格操作
+            table.on('tool(qrcodeTable)', function(obj) {
+                const data = obj.data;
+                
+                if (obj.event === 'detail') {
+                    layer.open({
+                        type: 1,
+                        title: '二维码详情',
+                        content: `
+                            <div style="padding:20px;">
+                                <p><strong>序列号：</strong>${data.qr_serial}</p>
+                                <p><strong>产品：</strong>${data.product_name}</p>
+                                <p><strong>批次：</strong>${data.batch_no}</p>
+                                <p><strong>扫码次数：</strong>${data.scan_count || 0}</p>
+                                <p><strong>创建时间：</strong>${utils.formatTime(data.created_at)}</p>
+                            </div>
+                        `,
+                        area: ['480px', 'auto']
+                    });
+                } else if (obj.event === 'download') {
+                    window.open('/api/qrcodes/download/' + data.id);
+                } else if (obj.event === 'print') {
+                    printQrcodes([data.id]);
+                } else if (obj.event === 'disable') {
+                    layer.confirm('确定要禁用该二维码吗？', {icon: 3}, async function(index) {
+                        try {
+                            const res = await api.put('/qrcodes/' + data.id + '/disable');
+                            if (res && res.code === 200) {
+                                layer.msg('操作成功', {icon: 1});
+                                loadTable(currentPage);
+                            }
+                        } catch (error) {
+                            layer.msg('操作失败', {icon: 2});
+                        }
+                        layer.close(index);
+                    });
+                }
+            });
+            
+            // 打印二维码
+            async function printQrcodes(ids) {
+                try {
+                    const res = await api.post('/qrcodes/print', { qrIds: ids });
+                    if (res && res.data && res.data.html) {
+                        const printWindow = window.open('', '_blank');
+                        printWindow.document.write(res.data.html);
+                        printWindow.document.close();
+                        setTimeout(() => printWindow.print(), 500);
+                    }
+                } catch (error) {
+                    console.error('打印失败', error);
+                    layer.msg('打印失败', {icon: 2});
+                }
+            }
+            
+            // 初始化
+            loadBatches();
+            loadTable(1);
+        });
+    </script>
+</body>
+</html>

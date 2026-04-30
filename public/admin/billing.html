@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>订阅管理 - 中药材溯源管理平台</title>
+    <link rel="stylesheet" href="https://unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f5f7fa; padding: 20px; }
+        .layui-card { border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); margin-bottom: 20px; }
+        .layui-card-header { font-size: 16px; font-weight: 600; color: #333; border-bottom: 1px solid #eee; }
+        .layui-card-body { padding: 20px; }
+        
+        .current-plan-card {
+            background: linear-gradient(135deg, #667eea 0%, #2BA471 100%);
+            color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .current-plan-name { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+        .current-plan-expires { font-size: 14px; opacity: 0.9; margin-bottom: 20px; }
+        .current-plan-price { font-size: 36px; font-weight: 700; }
+        .current-plan-price span { font-size: 16px; font-weight: 400; }
+        
+        .usage-section { margin-bottom: 24px; }
+        .usage-title { font-size: 14px; color: #666; margin-bottom: 8px; }
+        .usage-bar { height: 16px; background: #f0f0f0; border-radius: 8px; overflow: hidden; margin-bottom: 6px; }
+        .usage-bar-inner { height: 100%; background: linear-gradient(90deg, #2BA471 0%, #667eea 100%); border-radius: 8px; transition: width 0.6s; }
+        .usage-bar-inner.warning { background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%); }
+        .usage-bar-inner.danger { background: linear-gradient(90deg, #eb3349 0%, #f45c43 100%); }
+        .usage-text { font-size: 12px; color: #999; }
+        
+        .plans-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+        .plan-card {
+            background: #fff;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .plan-card:hover { border-color: #2BA471; transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1); }
+        .plan-card.active { border-color: #2BA471; background: linear-gradient(135deg, rgba(43, 164, 113, 0.05) 0%, rgba(102, 126, 234, 0.05) 100%); }
+        .plan-card .name { font-size: 18px; font-weight: 600; color: #333; margin-bottom: 8px; }
+        .plan-card .price { font-size: 32px; font-weight: 700; color: #2BA471; margin-bottom: 8px; }
+        .plan-card .price span { font-size: 14px; font-weight: 400; color: #999; }
+        .plan-card .limit { font-size: 13px; color: #666; margin-bottom: 16px; }
+        .plan-card .features { text-align: left; }
+        .plan-card .feature-item { font-size: 13px; color: #666; padding: 4px 0; }
+        .plan-card .feature-item::before { content: '✓'; color: #2BA471; margin-right: 8px; }
+        .plan-card .btn-upgrade { margin-top: 16px; }
+        
+        .compare-table { width: 100%; border-collapse: collapse; }
+        .compare-table th, .compare-table td { padding: 12px 16px; text-align: center; border-bottom: 1px solid #eee; }
+        .compare-table th { background: #f8f9fa; font-weight: 600; color: #333; }
+        .compare-table td:first-child { text-align: left; font-weight: 500; color: #666; }
+        .compare-table .current { color: #2BA471; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="layui-card">
+        <div class="layui-card-header">当前订阅</div>
+        <div class="layui-card-body">
+            <div class="current-plan-card">
+                <div class="current-plan-name" id="currentPlanName">免费版</div>
+                <div class="current-plan-expires" id="currentPlanExpires">有效期：永久</div>
+                <div class="current-plan-price">¥<span id="currentPlanPrice">0</span><span>/年</span></div>
+            </div>
+            
+            <div class="usage-section">
+                <div class="usage-title">产品数量</div>
+                <div class="usage-bar"><div id="productUsage" class="usage-bar-inner" style="width: 0%"></div></div>
+                <div class="usage-text"><span id="productUsed">0</span> / <span id="productLimit">10</span></div>
+            </div>
+            
+            <div class="usage-section">
+                <div class="usage-title">二维码数量</div>
+                <div class="usage-bar"><div id="qrcodeUsage" class="usage-bar-inner" style="width: 0%"></div></div>
+                <div class="usage-text"><span id="qrcodeUsed">0</span> / <span id="qrcodeLimit">200</span></div>
+            </div>
+            
+            <div class="usage-section">
+                <div class="usage-title">用户数量</div>
+                <div class="usage-bar"><div id="userUsage" class="usage-bar-inner" style="width: 0%"></div></div>
+                <div class="usage-text"><span id="userUsed">0</span> / <span id="userLimit">3</span></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="layui-card">
+        <div class="layui-card-header">套餐选择</div>
+        <div class="layui-card-body">
+            <div class="plans-grid" id="plansGrid"></div>
+        </div>
+    </div>
+    
+    <div class="layui-card">
+        <div class="layui-card-header">套餐对比</div>
+        <div class="layui-card-body">
+            <table class="compare-table">
+                <thead>
+                    <tr>
+                        <th>功能/资源</th>
+                        <th>免费版</th>
+                        <th>基础版</th>
+                        <th>专业版</th>
+                        <th>企业版</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>价格</td>
+                        <td>免费</td>
+                        <td>¥99/年</td>
+                        <td>¥299/年</td>
+                        <td>¥899/年</td>
+                    </tr>
+                    <tr>
+                        <td>产品数量</td>
+                        <td>10</td>
+                        <td>50</td>
+                        <td>200</td>
+                        <td>不限</td>
+                    </tr>
+                    <tr>
+                        <td>二维码数量</td>
+                        <td>200</td>
+                        <td>2,000</td>
+                        <td>10,000</td>
+                        <td>50,000</td>
+                    </tr>
+                    <tr>
+                        <td>用户数量</td>
+                        <td>3</td>
+                        <td>10</td>
+                        <td>30</td>
+                        <td>不限</td>
+                    </tr>
+                    <tr>
+                        <td>API调用限制</td>
+                        <td>100次/天</td>
+                        <td>300次/天</td>
+                        <td>600次/天</td>
+                        <td>不限</td>
+                    </tr>
+                    <tr>
+                        <td>基础溯源</td>
+                        <td>✓</td>
+                        <td>✓</td>
+                        <td>✓</td>
+                        <td>✓</td>
+                    </tr>
+                    <tr>
+                        <td>数据统计</td>
+                        <td>-</td>
+                        <td>✓</td>
+                        <td>✓</td>
+                        <td>✓</td>
+                    </tr>
+                    <tr>
+                        <td>API接口</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>✓</td>
+                        <td>✓</td>
+                    </tr>
+                    <tr>
+                        <td>专属客服</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>✓</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script src="/assets/admin/js/config.js"></script>
+    <script src="/assets/admin/js/common.js"></script>
+    <script>
+        layui.use(['layer'], function(){
+            const layer = layui.layer;
+            
+            let currentPlan = 'free';
+            let plans = [];
+            
+            async function loadPlans() {
+                try {
+                    const res = await api.get('/billing/plans');
+                    plans = res?.data || [];
+                    renderPlans();
+                } catch (error) {
+                    console.error('加载套餐失败', error);
+                }
+            }
+            
+            async function loadCurrent() {
+                try {
+                    const res = await api.get('/billing/current');
+                    const data = res?.data;
+                    
+                    if (data) {
+                        currentPlan = data.plan;
+                        
+                        document.getElementById('currentPlanName').textContent = data.planName;
+                        document.getElementById('currentPlanExpires').textContent = data.expiresAt ? `有效期至：${data.expiresAt}` : '有效期：永久';
+                        
+                        const plan = plans.find(p => p.key === currentPlan);
+                        if (plan) {
+                            document.getElementById('currentPlanPrice').textContent = plan.price;
+                        }
+                        
+                        document.getElementById('productUsed').textContent = data.products.used;
+                        document.getElementById('productLimit').textContent = data.products.limit === 999999 ? '不限' : data.products.limit;
+                        updateUsageBar('productUsage', data.products.percent);
+                        
+                        document.getElementById('qrcodeUsed').textContent = data.qrcodes.used;
+                        document.getElementById('qrcodeLimit').textContent = data.qrcodes.limit === 999999 ? '不限' : data.qrcodes.limit;
+                        updateUsageBar('qrcodeUsage', data.qrcodes.percent);
+                        
+                        document.getElementById('userUsed').textContent = data.users.used;
+                        document.getElementById('userLimit').textContent = data.users.limit === 999999 ? '不限' : data.users.limit;
+                        updateUsageBar('userUsage', data.users.percent);
+                        
+                        renderPlans();
+                    }
+                } catch (error) {
+                    console.error('加载订阅信息失败', error);
+                }
+            }
+            
+            function updateUsageBar(id, percent) {
+                const bar = document.getElementById(id);
+                bar.style.width = Math.min(percent, 100) + '%';
+                bar.classList.remove('warning', 'danger');
+                if (percent >= 90) {
+                    bar.classList.add('danger');
+                } else if (percent >= 70) {
+                    bar.classList.add('warning');
+                }
+            }
+            
+            function renderPlans() {
+                const grid = document.getElementById('plansGrid');
+                
+                grid.innerHTML = plans.map(plan => `
+                    <div class="plan-card ${plan.key === currentPlan ? 'active' : ''}" data-plan="${plan.key}">
+                        <div class="name">${plan.name}</div>
+                        <div class="price">¥${plan.price}<span>/年</span></div>
+                        <div class="limit">
+                            产品: ${plan.products === -1 ? '不限' : plan.products} | 
+                            二维码: ${plan.qrcodes === -1 ? '不限' : plan.qrcodes}
+                        </div>
+                        <div class="features">
+                            ${(plan.features || []).slice(0, 4).map(f => `<div class="feature-item">${f}</div>`).join('')}
+                        </div>
+                        ${plan.key === currentPlan 
+                            ? '<button class="layui-btn layui-btn-disabled btn-upgrade" disabled>当前套餐</button>'
+                            : '<button class="layui-btn btn-upgrade">立即升级</button>'
+                        }
+                    </div>
+                `).join('');
+                
+                document.querySelectorAll('.plan-card').forEach(card => {
+                    card.querySelector('.btn-upgrade')?.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const planKey = card.dataset.plan;
+                        if (planKey !== currentPlan) {
+                            confirmUpgrade(planKey);
+                        }
+                    });
+                });
+            }
+            
+            async function confirmUpgrade(planKey) {
+                const plan = plans.find(p => p.key === planKey);
+                if (!plan) return;
+                
+                layer.confirm(`
+                    <div style="text-align: center;">
+                        <p style="font-size: 18px; font-weight: 600; margin-bottom: 12px;">${plan.name}</p>
+                        <p style="font-size: 24px; color: #2BA471; font-weight: 700;">¥${plan.price}/年</p>
+                        <p style="color: #999; margin-top: 12px;">确认升级到此套餐？</p>
+                    </div>
+                `, {
+                    title: '确认升级',
+                    btn: ['确认升级', '取消']
+                }, async function(index) {
+                    try {
+                        const res = await api.post('/billing/upgrade', { 
+                            plan: planKey,
+                            paymentConfirmed: true 
+                        });
+                        
+                        if (res && res.code === 200) {
+                            layer.msg('升级成功！', {icon: 1});
+                            currentPlan = planKey;
+                            loadCurrent();
+                        }
+                    } catch (error) {
+                        layer.msg('升级失败', {icon: 2});
+                    }
+                    layer.close(index);
+                });
+            }
+            
+            async function init() {
+                await loadPlans();
+                await loadCurrent();
+            }
+            
+            init();
+        });
+    </script>
+</body>
+</html>

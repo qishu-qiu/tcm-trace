@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>审计日志 - 中药材溯源管理平台</title>
+    <link rel="stylesheet" href="https://unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f5f7fa; padding: 20px; }
+        .layui-card { border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+        .layui-card-header { font-size: 16px; font-weight: 600; color: #333; border-bottom: 1px solid #eee; }
+        .search-bar { padding: 16px; background: #fff; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        .search-bar .layui-form-item { margin-bottom: 0; margin-right: 0; }
+        .table-container { padding: 16px; }
+        .diff-container { max-height: 400px; overflow-y: auto; }
+        .diff-item { margin-bottom: 16px; }
+        .diff-label { font-weight: 600; color: #333; margin-bottom: 8px; }
+        .diff-value { background: #f8f9fa; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 13px; white-space: pre-wrap; word-break: break-all; }
+        .diff-added { background: #e6f7f1; color: #2BA471; }
+        .diff-removed { background: #fff3f3; color: #c92a2a; }
+    </style>
+</head>
+<body>
+    <div class="layui-card">
+        <div class="search-bar">
+            <form class="layui-form" lay-filter="searchForm">
+                <div class="layui-form-item">
+                    <label class="layui-form-label">操作人</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="actorId" placeholder="请输入操作人ID" autocomplete="off" class="layui-input">
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">操作类型</label>
+                    <div class="layui-input-inline">
+                        <select name="action">
+                            <option value="">全部</option>
+                            <option value="create">创建</option>
+                            <option value="update">更新</option>
+                            <option value="delete">删除</option>
+                            <option value="login">登录</option>
+                            <option value="logout">退出</option>
+                            <option value="print">打印</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">资源类型</label>
+                    <div class="layui-input-inline">
+                        <select name="resourceType">
+                            <option value="">全部</option>
+                            <option value="product">产品</option>
+                            <option value="batch">批次</option>
+                            <option value="qrcode">二维码</option>
+                            <option value="user">用户</option>
+                            <option value="tenant">租户</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">开始日期</label>
+                    <div class="layui-input-inline">
+                        <input type="date" name="startDate" class="layui-input">
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">结束日期</label>
+                    <div class="layui-input-inline">
+                        <input type="date" name="endDate" class="layui-input">
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">结果</label>
+                    <div class="layui-input-inline">
+                        <select name="result">
+                            <option value="">全部</option>
+                            <option value="success">成功</option>
+                            <option value="fail">失败</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <button class="layui-btn layui-btn-primary" lay-submit lay-filter="search">
+                        <i class="layui-icon layui-icon-search"></i> 搜索
+                    </button>
+                    <button type="button" class="layui-btn" id="btnExport">
+                        <i class="layui-icon layui-icon-export"></i> 导出Excel
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="table-container">
+            <table id="auditTable" lay-filter="auditTable"></table>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script src="/assets/admin/js/config.js"></script>
+    <script src="/assets/admin/js/common.js"></script>
+    <script type="text/html" id="auditTpl">
+        <a class="layui-btn layui-btn-xs" lay-event="detail">详情</a>
+    </script>
+    <script>
+        layui.use(['table', 'layer', 'form', 'laydate'], function(){
+            const table = layui.table;
+            const layer = layui.layer;
+            const form = layui.form;
+            
+            let currentPage = 1;
+            let currentPageSize = 20;
+            
+            async function loadTable(page = 1) {
+                currentPage = page;
+                const actorId = document.querySelector('input[name="actorId"]').value;
+                const action = document.querySelector('select[name="action"]').value;
+                const resourceType = document.querySelector('select[name="resourceType"]').value;
+                const startDate = document.querySelector('input[name="startDate"]').value;
+                const endDate = document.querySelector('input[name="endDate"]').value;
+                const result = document.querySelector('select[name="result"]').value;
+                
+                try {
+                    const res = await api.get('/audit', {
+                        page: page,
+                        pageSize: currentPageSize,
+                        actorId: actorId,
+                        action: action,
+                        resourceType: resourceType,
+                        startDate: startDate,
+                        endDate: endDate,
+                        result: result
+                    });
+                    
+                    const data = res?.data || { list: [], total: 0 };
+                    
+                    table.render({
+                        elem: '#auditTable',
+                        cols: [[
+                            { field: 'id', title: 'ID', width: 80, sort: true },
+                            { field: 'occurred_at', title: '时间', width: 180, templet: function(d) {
+                                return utils.formatTime(d.occurred_at);
+                            }},
+                            { field: 'actor_name', title: '操作人', width: 120 },
+                            { field: 'action', title: '操作类型', width: 100 },
+                            { field: 'resource_type', title: '资源类型', width: 100 },
+                            { field: 'resource_id', title: '资源ID', width: 100 },
+                            { field: 'source_ip', title: 'IP地址', width: 140 },
+                            { field: 'result', title: '结果', width: 80, templet: function(d) {
+                                return d.result === 'success' 
+                                    ? '<span style="color:#2BA471;">成功</span>' 
+                                    : '<span style="color:#c92a2a;">失败</span>';
+                            }},
+                            { title: '操作', toolbar: '#auditTpl', width: 100 }
+                        ]],
+                        data: data.list,
+                        page: {
+                            curr: page,
+                            count: data.total,
+                            limit: currentPageSize,
+                            layout: ['count', 'prev', 'page', 'next', 'skip'],
+                            jump: function(obj, first) {
+                                if (!first) {
+                                    loadTable(obj.curr);
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('加载表格失败', error);
+                }
+            }
+            
+            form.on('submit(search)', function(data) {
+                loadTable(1);
+                return false;
+            });
+            
+            document.getElementById('btnExport').onclick = function() {
+                const actorId = document.querySelector('input[name="actorId"]').value;
+                const action = document.querySelector('select[name="action"]').value;
+                const resourceType = document.querySelector('select[name="resourceType"]').value;
+                const startDate = document.querySelector('input[name="startDate"]').value;
+                const endDate = document.querySelector('input[name="endDate"]').value;
+                const result = document.querySelector('select[name="result"]').value;
+                
+                const params = new URLSearchParams();
+                if (actorId) params.append('actorId', actorId);
+                if (action) params.append('action', action);
+                if (resourceType) params.append('resourceType', resourceType);
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+                if (result) params.append('result', result);
+                
+                window.open('/api/audit/logs/export?' + params.toString());
+            };
+            
+            table.on('tool(auditTable)', function(obj) {
+                const data = obj.data;
+                
+                if (obj.event === 'detail') {
+                    showDetail(data);
+                }
+            });
+            
+            function showDetail(data) {
+                const beforeData = data.before_data || {};
+                const afterData = data.after_data || {};
+                
+                let diffHtml = '';
+                
+                if (Object.keys(beforeData).length > 0 || Object.keys(afterData).length > 0) {
+                    diffHtml = `
+                        <div class="diff-container">
+                            <div class="diff-item">
+                                <div class="diff-label">变更前数据：</div>
+                                <div class="diff-value">${JSON.stringify(beforeData, null, 2) || '无'}</div>
+                            </div>
+                            <div class="diff-item">
+                                <div class="diff-label">变更后数据：</div>
+                                <div class="diff-value">${JSON.stringify(afterData, null, 2) || '无'}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                layer.open({
+                    type: 1,
+                    title: '操作详情',
+                    content: `
+                        <div style="padding: 20px;">
+                            <p><strong>时间：</strong>${utils.formatTime(data.occurred_at)}</p>
+                            <p><strong>操作人：</strong>${data.actor_name || data.actor_id}</p>
+                            <p><strong>操作类型：</strong>${data.action}</p>
+                            <p><strong>资源类型：</strong>${data.resource_type}</p>
+                            <p><strong>资源ID：</strong>${data.resource_id}</p>
+                            <p><strong>IP地址：</strong>${data.source_ip}</p>
+                            <p><strong>结果：</strong>${data.result === 'success' ? '成功' : '失败'}</p>
+                            ${data.error_message ? `<p><strong>错误信息：</strong>${data.error_message}</p>` : ''}
+                            ${diffHtml}
+                        </div>
+                    `,
+                    area: ['600px', 'auto'],
+                    maxmin: true
+                });
+            }
+            
+            loadTable(1);
+        });
+    </script>
+</body>
+</html>

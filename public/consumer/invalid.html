@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>无效溯源码 - 中药材溯源平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #F5F5F5;
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .container {
+            max-width: 750px;
+            margin: 0 auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .status-bar {
+            padding: 40px 20px;
+            text-align: center;
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: #fff;
+        }
+        
+        .status-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+        
+        .status-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .status-message {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 24px 16px;
+            flex: 1;
+        }
+        
+        .reasons-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .reasons-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .reasons-title-icon {
+            margin-right: 8px;
+        }
+        
+        .reasons-list {
+            list-style: none;
+        }
+        
+        .reasons-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        
+        .reasons-item:last-child {
+            border-bottom: none;
+        }
+        
+        .reasons-icon {
+            width: 24px;
+            height: 24px;
+            background: #fff3f3;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #c92a2a;
+            font-size: 12px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        
+        .reasons-text {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .tips-card {
+            background: #fff8e1;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .tips-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #d68910;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .tips-list {
+            list-style: none;
+        }
+        
+        .tips-item {
+            font-size: 13px;
+            color: #666;
+            padding: 6px 0;
+            padding-left: 16px;
+            position: relative;
+        }
+        
+        .tips-item::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: #d68910;
+        }
+        
+        .btn-contact {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #2BA471 0%, #38b87a 100%);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        .btn-contact:active {
+            opacity: 0.9;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .footer-company {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="status-bar">
+            <div class="status-icon">✗</div>
+            <div class="status-title">该溯源码无效</div>
+            <div class="status-message">请核实产品信息或联系客服</div>
+        </div>
+        
+        <div class="content">
+            <div class="reasons-card">
+                <div class="reasons-title">
+                    <span class="reasons-title-icon">⚠️</span>
+                    可能原因
+                </div>
+                <ul class="reasons-list">
+                    <li class="reasons-item">
+                        <span class="reasons-icon">1</span>
+                        <span class="reasons-text">溯源码输入错误，请核对后重新扫码</span>
+                    </li>
+                    <li class="reasons-item">
+                        <span class="reasons-icon">2</span>
+                        <span class="reasons-text">该溯源码已被禁用或已过期</span>
+                    </li>
+                    <li class="reasons-item">
+                        <span class="reasons-icon">3</span>
+                        <span class="reasons-text">产品可能为假冒伪劣商品，请谨慎购买</span>
+                    </li>
+                    <li class="reasons-item">
+                        <span class="reasons-icon">4</span>
+                        <span class="reasons-text">系统数据同步延迟，请稍后重试</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="tips-card">
+                <div class="tips-title">
+                    <span style="margin-right: 8px;">💡</span>
+                    温馨提示
+                </div>
+                <ul class="tips-list">
+                    <li class="tips-item">请通过正规渠道购买中药材产品</li>
+                    <li class="tips-item">扫码时确保二维码清晰完整</li>
+                    <li class="tips-item">如对产品有疑问，请及时联系商家</li>
+                    <li class="tips-item">发现假冒产品可向监管部门举报</li>
+                </ul>
+            </div>
+            
+            <a href="tel:400-123-4567" class="btn-contact">
+                📞 联系客服
+            </a>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-company">中药材溯源平台</div>
+            <div>© 2025 中药材溯源平台 · 安全可信赖</div>
+        </div>
+    </div>
+</body>
+</html>

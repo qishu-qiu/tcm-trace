@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工作台 - 中药材溯源管理平台</title>
+    <link rel="stylesheet" href="https://unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f5f7fa; padding: 20px; }
+        .layui-card { margin-bottom: 20px; border: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+        .layui-card-header { font-size: 16px; font-weight: 600; color: #333; border-bottom: 1px solid #eee; background: #fff; }
+        .layui-card-body { background: #fff; }
+        
+        .stat-card { display: flex; align-items: center; justify-content: space-between; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #2BA471 100%); color: white; border-radius: 8px; }
+        .stat-card h3 { font-size: 36px; font-weight: 700; margin-bottom: 6px; }
+        .stat-card p { font-size: 14px; opacity: 0.9; }
+        .stat-card .icon { font-size: 48px; opacity: 0.3; }
+        .stat-card:nth-child(2) { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .stat-card:nth-child(3) { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .stat-card:nth-child(4) { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        
+        #scanTrendChart { width: 100%; height: 400px; }
+        
+        .usage-progress { margin-top: 20px; }
+        .usage-item { margin-bottom: 16px; }
+        .usage-item h4 { font-size: 14px; color: #555; margin-bottom: 8px; }
+        .usage-bar { height: 12px; background: #f0f0f0; border-radius: 6px; overflow: hidden; }
+        .usage-bar-inner { height: 100%; background: linear-gradient(90deg, #2BA471 0%, #667eea 100%); border-radius: 6px; transition: width 0.6s; }
+    </style>
+</head>
+<body>
+    <!-- 统计卡片 -->
+    <div class="layui-row layui-col-space16">
+        <div class="layui-col-md3">
+            <div class="stat-card">
+                <div>
+                    <h3 id="statProduct">--</h3>
+                    <p>产品总数</p>
+                </div>
+                <div class="icon">📦</div>
+            </div>
+        </div>
+        <div class="layui-col-md3">
+            <div class="stat-card">
+                <div>
+                    <h3 id="statBatch">--</h3>
+                    <p>批次总数</p>
+                </div>
+                <div class="icon">📋</div>
+            </div>
+        </div>
+        <div class="layui-col-md3">
+            <div class="stat-card">
+                <div>
+                    <h3 id="statQrcode">--</h3>
+                    <p>二维码总数</p>
+                </div>
+                <div class="icon">🔗</div>
+            </div>
+        </div>
+        <div class="layui-col-md3">
+            <div class="stat-card">
+                <div>
+                    <h3 id="statScanMonth">--</h3>
+                    <p>本月扫码次数</p>
+                </div>
+                <div class="icon">📱</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图表区域 -->
+    <div class="layui-row layui-col-space20">
+        <div class="layui-col-md8">
+            <div class="layui-card">
+                <div class="layui-card-header">最近7天扫码趋势</div>
+                <div class="layui-card-body">
+                    <div id="scanTrendChart"></div>
+                </div>
+            </div>
+        </div>
+        <div class="layui-col-md4">
+            <div class="layui-card">
+                <div class="layui-card-header">套餐使用情况</div>
+                <div class="layui-card-body">
+                    <div class="usage-progress">
+                        <div class="usage-item">
+                            <h4>产品数量 <span id="usageProductText">--/--</span></h4>
+                            <div class="usage-bar"><div id="usageProduct" class="usage-bar-inner" style="width:0%"></div></div>
+                        </div>
+                        <div class="usage-item">
+                            <h4>二维码数量 <span id="usageQrcodeText">--/--</span></h4>
+                            <div class="usage-bar"><div id="usageQrcode" class="usage-bar-inner" style="width:0%"></div></div>
+                        </div>
+                        <div class="usage-item">
+                            <h4>用户数量 <span id="usageUserText">--/--</span></h4>
+                            <div class="usage-bar"><div id="usageUser" class="usage-bar-inner" style="width:0%"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最近操作 -->
+    <div class="layui-card">
+        <div class="layui-card-header">最近操作记录</div>
+        <div class="layui-card-body">
+            <table class="layui-table" lay-even>
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>操作人</th>
+                        <th>操作类型</th>
+                        <th>资源类型</th>
+                        <th>结果</th>
+                    </tr>
+                </thead>
+                <tbody id="auditLogBody">
+                    <tr><td colspan="5" style="text-align:center; color:#999;">暂无数据</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="/assets/admin/js/config.js"></script>
+    <script src="/assets/admin/js/common.js"></script>
+    <script>
+        layui.use(['layer', 'laypage'], function(){
+            const layer = layui.layer;
+            const laypage = layui.laypage;
+            
+            let chartInstance = null;
+            
+            // 加载统计数据
+            async function loadStats() {
+                try {
+                    const productRes = await api.get('/products');
+                    const batchRes = await api.get('/batches');
+                    const qrcodeRes = await api.get('/qrcodes');
+                    
+                    document.getElementById('statProduct').textContent = productRes?.data?.total || 0;
+                    document.getElementById('statBatch').textContent = batchRes?.data?.total || 0;
+                    document.getElementById('statQrcode').textContent = qrcodeRes?.data?.total || 0;
+                    document.getElementById('statScanMonth').textContent = Math.floor(Math.random() * 1000 + 100); // 模拟
+                    
+                    // 套餐使用进度
+                    const userInfo = auth.getUserInfo();
+                    if (userInfo && userInfo.tenant) {
+                        const maxProduct = userInfo.tenant.max_products || 100;
+                        const maxQrcode = userInfo.tenant.max_qrcodes || 1000;
+                        const maxUser = userInfo.tenant.max_users || 10;
+                        
+                        const usedProduct = productRes?.data?.total || 0;
+                        const usedQrcode = qrcodeRes?.data?.total || 0;
+                        const usedUser = Math.floor(Math.random() * 5 + 1);
+                        
+                        document.getElementById('usageProductText').textContent = `${usedProduct}/${maxProduct}`;
+                        document.getElementById('usageQrcodeText').textContent = `${usedQrcode}/${maxQrcode}`;
+                        document.getElementById('usageUserText').textContent = `${usedUser}/${maxUser}`;
+                        
+                        document.getElementById('usageProduct').style.width = `${(usedProduct/maxProduct)*100}%`;
+                        document.getElementById('usageQrcode').style.width = `${(usedQrcode/maxQrcode)*100}%`;
+                        document.getElementById('usageUser').style.width = `${(usedUser/maxUser)*100}%`;
+                    }
+                    
+                } catch (error) {
+                    console.error('加载统计失败', error);
+                }
+            }
+            
+            // 加载审计日志
+            async function loadAuditLogs() {
+                try {
+                    const res = await api.get('/audit', { page: 1, pageSize: 20 });
+                    const logs = res?.data?.list || [];
+                    
+                    const tbody = document.getElementById('auditLogBody');
+                    if (logs.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#999;">暂无数据</td></tr>';
+                        return;
+                    }
+                    
+                    tbody.innerHTML = logs.map(log => `
+                        <tr>
+                            <td>${utils.formatTime(log.occurred_at)}</td>
+                            <td>${log.actor_name || '--'}</td>
+                            <td>${log.action}</td>
+                            <td>${log.resource_type}</td>
+                            <td>
+                                ${log.result === 'success' 
+                                    ? '<span style="color:#2BA471;">成功</span>' 
+                                    : '<span style="color:#c92a2a;">失败</span>'}
+                            </td>
+                        </tr>
+                    `).join('');
+                } catch (error) {
+                    console.error('加载审计日志失败', error);
+                }
+            }
+            
+            // 初始化图表
+            function initChart() {
+                const chartDom = document.getElementById('scanTrendChart');
+                chartInstance = echarts.init(chartDom);
+                
+                const days = [];
+                const today = new Date();
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date(today);
+                    d.setDate(today.getDate() - i);
+                    days.push(`${d.getMonth()+1}-${d.getDate()}`);
+                }
+                
+                const data = days.map(() => Math.floor(Math.random() * 300 + 50));
+                
+                const option = {
+                    tooltip: { trigger: 'axis' },
+                    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                    xAxis: { type: 'category', boundaryGap: false, data: days },
+                    yAxis: { type: 'value' },
+                    series: [{
+                        name: '扫码次数',
+                        type: 'line',
+                        smooth: true,
+                        data: data,
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(102, 126, 234, 0.5)' },
+                                { offset: 1, color: 'rgba(43, 164, 113, 0.2)' }
+                            ])
+                        },
+                        lineStyle: {
+                            width: 3,
+                            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                                { offset: 0, color: '#667eea' },
+                                { offset: 1, color: '#2BA471' }
+                            ])
+                        },
+                        itemStyle: { color: '#2BA471' }
+                    }]
+                };
+                
+                chartInstance.setOption(option);
+            }
+            
+            // 初始化
+            loadStats();
+            loadAuditLogs();
+            initChart();
+            
+            // 窗口大小改变时重绘
+            window.addEventListener('resize', function() {
+                if (chartInstance) chartInstance.resize();
+            });
+        });
+    </script>
+</body>
+</html>

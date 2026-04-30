@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中药材溯源管理平台 - 登录</title>
+    <link rel="stylesheet" href="https://unpkg.com/layui@2.9.6/dist/css/layui.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #2BA471 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-container {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            width: 420px;
+            padding: 50px 40px;
+            text-align: center;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #2BA471 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 25px;
+            font-size: 36px;
+            color: white;
+        }
+        
+        .title {
+            font-size: 24px;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 40px;
+        }
+        
+        .layui-form-item {
+            margin-bottom: 24px;
+            text-align: left;
+        }
+        
+        .layui-form-label {
+            width: 90px;
+            padding: 9px 15px;
+            text-align: right;
+            color: #555;
+        }
+        
+        .layui-input-block {
+            margin-left: 90px;
+        }
+        
+        .layui-input {
+            height: 46px;
+            border-radius: 6px;
+            border-color: #e0e0e0;
+        }
+        
+        .layui-input:focus {
+            border-color: #2BA471 !important;
+            box-shadow: 0 0 0 3px rgba(43, 164, 113, 0.15);
+        }
+        
+        .login-btn {
+            width: 100%;
+            height: 46px;
+            background: linear-gradient(135deg, #667eea 0%, #2BA471 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(43, 164, 113, 0.35);
+        }
+        
+        .login-btn:active {
+            transform: translateY(0);
+        }
+        
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">🏪</div>
+        <div class="title">中药材溯源管理平台</div>
+        <div class="subtitle">企业管理后台</div>
+        
+        <form class="layui-form" lay-filter="loginForm">
+            <div class="layui-form-item">
+                <label class="layui-form-label">企业标识</label>
+                <div class="layui-input-block">
+                    <input type="text" name="tenantSlug" lay-verify="required" placeholder="请输入企业标识" autocomplete="off" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">用户名</label>
+                <div class="layui-input-block">
+                    <input type="text" name="username" lay-verify="required" placeholder="请输入用户名" autocomplete="off" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">密码</label>
+                <div class="layui-input-block">
+                    <input type="password" name="password" lay-verify="required" placeholder="请输入密码" autocomplete="off" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <div class="layui-input-block" style="margin-left: 0;">
+                    <button class="login-btn" lay-submit lay-filter="login">立即登录</button>
+                </div>
+            </div>
+        </form>
+        
+        <div class="footer">© 2025 中药材溯源平台 · 安全可信赖</div>
+    </div>
+
+    <script src="https://unpkg.com/layui@2.9.6/dist/layui.js"></script>
+    <script src="/assets/admin/js/config.js"></script>
+    <script src="/assets/admin/js/common.js"></script>
+    <script>
+        layui.use(['form', 'layer'], function(){
+            const form = layui.form;
+            const layer = layui.layer;
+            
+            form.on('submit(login)', async function(data){
+                const loading = layer.load(2, {shade: [0.3, '#000']});
+                
+                try {
+                    const result = await api.post('/auth/login', data.field);
+                    
+                    if (result && result.data) {
+                        auth.setToken(result.data.token);
+                        auth.setUserInfo({
+                            user: result.data.user,
+                            tenant: result.data.tenant
+                        });
+                        
+                        layer.close(loading);
+                        layer.msg('登录成功', {icon: 1});
+                        
+                        setTimeout(() => {
+                            window.location.href = '/admin/index.html';
+                        }, 800);
+                    }
+                } catch (error) {
+                    layer.close(loading);
+                    layer.msg('登录失败，请检查网络', {icon: 2});
+                }
+                
+                return false;
+            });
+        });
+    </script>
+</body>
+</html>
