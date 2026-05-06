@@ -1,0 +1,33 @@
+{
+    "version": "1.0.0",
+    "project": "TCM Trace",
+    "description": "中药溯源系统",
+    "php_version": "8.2",
+    "framework": "codeigniter4",
+    "checks": {
+        "syntax": true,
+        "routes": true,
+        "controllers": true,
+        "views": true,
+        "models": true,
+        "filters": true,
+        "services": true,
+        "duplicates": true,
+        "security": true,
+        "api_consistency": true,
+        "business_logic": true
+    },
+    "auto_fix": {
+        "enabled": false,
+        "create_missing_views": true,
+        "implement_empty_methods": false,
+        "add_validation": false
+    },
+    "ignore": [
+        "app/ThirdParty/**",
+        "app/Views/errors/**",
+        "system/**",
+        "vendor/**",
+        "writable/**"
+    ]
+}
