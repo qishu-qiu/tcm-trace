@@ -23,7 +23,7 @@ class ScanLogModel extends Model
     protected $validationMessages = [];
     protected $skipValidation = false;
 
-    protected function decodeJsonFields(?array $record): ?array
+    public function decodeJsonFields(?array $record): ?array
     {
         if ($record === null) {
             return null;

@@ -116,7 +116,8 @@ class RiskService
         foreach ($traceRecords as $record) {
             $detail = $record['detail'];
             if (is_string($detail)) {
-                $detail = json_decode($detail, true) ?? [];
+                $decoded = json_decode($detail, true);
+                $detail = $decoded !== null ? $decoded : $detail;
             }
             
             $attachments = $record['attachments'];
