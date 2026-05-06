@@ -206,23 +206,46 @@ class Qrcode extends BaseController
             return $this->error('二维码图片不存在', 404);
         }
 
+        $allowedDir = realpath(FCPATH . 'uploads/qrcodes');
         $filepath = FCPATH . ltrim($qrcode['qr_image_url'], '/');
+        $realFilePath = realpath($filepath);
 
-        if (!file_exists($filepath)) {
+        if (!$realFilePath || strpos($realFilePath, $allowedDir) !== 0) {
+            return $this->error('无权访问该文件', 403);
+        }
+
+        $extension = strtolower(pathinfo($realFilePath, PATHINFO_EXTENSION));
+        if (!in_array($extension, ['png', 'jpg', 'jpeg', 'gif'])) {
+            return $this->error('不支持的文件类型', 400);
+        }
+
+        if (!file_exists($realFilePath)) {
             $qrUrl = $qrcode['qr_url'];
             $qrSerial = $qrcode['qr_serial'];
             $this->qrcodeService->generateQrImage($qrUrl, $this->tenantId, $qrSerial);
+            $realFilePath = realpath($filepath);
         }
 
-        if (!file_exists($filepath)) {
+        if (!file_exists($realFilePath)) {
             return $this->error('文件不存在', 404);
         }
 
-        $filename = $qrcode['qr_serial'] . '.png';
+        $filename = $qrcode['qr_serial'] . '.' . $extension;
 
         return $this->response
-            ->setHeader('Content-Type', 'image/png')
-            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
-            ->setBody(file_get_contents($filepath));
+            ->setHeader('Content-Type', $this->getMimeType($extension))
+            ->setHeader('Content-Disposition', 'attachment; filename="' . htmlspecialchars($filename, ENT_QUOTES) . '"')
+            ->setBody(file_get_contents($realFilePath));
+    }
+
+    protected function getMimeType(string $extension): string
+    {
+        $mimeTypes = [
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+        ];
+        return $mimeTypes[$extension] ?? 'application/octet-stream';
     }
 }

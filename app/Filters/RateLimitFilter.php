@@ -10,9 +10,12 @@ class RateLimitFilter implements FilterInterface
 {
     protected int $maxRequests = 100;
     protected int $windowSeconds = 60;
+    protected int $cleanupInterval = 3600;
 
     public function before(RequestInterface $request, $arguments = null)
     {
+        $this->cleanupExpiredFiles();
+
         $tenantId = $request->tenantId ?? 0;
         $ip = $request->getIPAddress();
         
@@ -21,13 +24,14 @@ class RateLimitFilter implements FilterInterface
         $cacheFile = WRITEPATH . "cache/" . md5($cacheKey) . ".php";
 
         $currentTime = time();
-        $windowStart = $currentTime - $this->windowSeconds;
         $count = 0;
 
         if (file_exists($cacheFile)) {
             $data = @include $cacheFile;
             if (is_array($data) && isset($data['expires']) && $data['expires'] > $currentTime) {
                 $count = $data['count'] ?? 0;
+            } else {
+                @unlink($cacheFile);
             }
         }
 
@@ -54,6 +58,37 @@ class RateLimitFilter implements FilterInterface
         }
 
         return null;
+    }
+
+    protected function cleanupExpiredFiles(): void
+    {
+        static $lastCleanup = 0;
+        $currentTime = time();
+
+        if ($currentTime - $lastCleanup < $this->cleanupInterval) {
+            return;
+        }
+
+        $lastCleanup = $currentTime;
+        $cacheDir = WRITEPATH . "cache/";
+
+        if (!is_dir($cacheDir)) {
+            return;
+        }
+
+        $files = glob($cacheDir . "*.php");
+        if ($files === false) {
+            return;
+        }
+
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                $data = @include $file;
+                if (is_array($data) && isset($data['expires']) && $data['expires'] <= $currentTime) {
+                    @unlink($file);
+                }
+            }
+        }
     }
 
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)

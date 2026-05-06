@@ -202,8 +202,8 @@ class BillingService
             $auditService->log(
                 'upgrade_plan',
                 'tenant',
-                $tenant['plan'],
                 (string) $tenantId,
+                ['old_plan' => $tenant['plan']],
                 ['new_plan' => $newPlan, 'expires_at' => $expiresAt],
                 $tenantId,
                 null,

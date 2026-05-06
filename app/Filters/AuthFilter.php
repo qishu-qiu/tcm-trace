@@ -12,7 +12,14 @@ class AuthFilter implements FilterInterface
     protected array $publicRoutes = [
         'api/auth/login',
         'api/auth/register',
-        'api/scan',
+        'api/scan/verify',
+        'api/scan/history',
+    ];
+
+    protected array $publicRoutePatterns = [
+        'api/scan/verify/.*',
+        'api/auth/register',
+        'api/auth/login',
     ];
 
     public function before(RequestInterface $request, $arguments = null)
@@ -20,8 +27,19 @@ class AuthFilter implements FilterInterface
         $uri = $request->getUri()->getPath();
         $uri = ltrim($uri, '/');
 
-        foreach ($this->publicRoutes as $publicRoute) {
-            if (str_starts_with($uri, $publicRoute)) {
+        $normalizedUri = $this->normalizePath($uri);
+        if ($normalizedUri !== $uri) {
+            return service('response')
+                ->setStatusCode(400)
+                ->setJSON([
+                    'code'    => 400,
+                    'message' => '无效的请求路径',
+                    'data'    => null,
+                ]);
+        }
+
+        foreach ($this->publicRoutePatterns as $pattern) {
+            if (preg_match('#^' . $pattern . '$#', $uri)) {
                 return null;
             }
         }
@@ -63,5 +81,25 @@ class AuthFilter implements FilterInterface
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
         return $response;
+    }
+
+    protected function normalizePath(string $path): string
+    {
+        $path = str_replace('\\', '/', $path);
+        $parts = explode('/', $path);
+        $result = [];
+        
+        foreach ($parts as $part) {
+            if ($part === '.' || $part === '') {
+                continue;
+            }
+            if ($part === '..') {
+                array_pop($result);
+            } else {
+                $result[] = $part;
+            }
+        }
+        
+        return implode('/', $result);
     }
 }

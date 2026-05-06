@@ -15,7 +15,15 @@ class JwtService
 
     public function __construct()
     {
-        $this->secret = env('jwt.secret', 'tcm_trace_jwt_secret_key_must_be_long_enough_for_hs256_algorithm');
+        $this->secret = env('jwt.secret');
+        if (empty($this->secret)) {
+            throw new \RuntimeException('JWT secret is not configured. Please set jwt.secret in your environment configuration.');
+        }
+        
+        if (strlen($this->secret) < 32) {
+            throw new \RuntimeException('JWT secret must be at least 32 characters long for HS256 algorithm.');
+        }
+        
         $expireDays = (int) env('jwt.expire_days', 7);
         $this->expireSeconds = $expireDays * 86400;
     }

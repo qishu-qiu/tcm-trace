@@ -126,39 +126,58 @@ class QrcodeService
             throw new \RuntimeException('批次不存在');
         }
 
-        $product = $this->db->table('products')
-            ->where('id', $batch['product_id'])
-            ->get()
-            ->getRowArray();
-
         $generatedIds = [];
+        $generatedImages = [];
 
-        for ($i = 0; $i < $quantity; $i++) {
-            $qrSerial = $this->generateQrSerial($tenantId);
-            $qrUrl = base_url('verify/' . $qrSerial);
-            $qrImageUrl = $this->generateQrImage($qrUrl, $tenantId, $qrSerial);
+        $this->db->transStart();
 
-            $data = [
-                'tenant_id'     => $tenantId,
-                'batch_id'      => $batchId,
-                'qr_serial'     => $qrSerial,
-                'qr_url'        => $qrUrl,
-                'qr_image_url'  => $qrImageUrl,
-                'scan_count'    => 0,
-                'is_disabled'   => 0,
-                'status'        => 0,
-                'created_at'    => date('Y-m-d H:i:s'),
-            ];
+        try {
+            for ($i = 0; $i < $quantity; $i++) {
+                $qrSerial = $this->generateQrSerial($tenantId);
+                $qrUrl = base_url('verify/' . $qrSerial);
+                $qrImageUrl = $this->generateQrImage($qrUrl, $tenantId, $qrSerial);
+                $generatedImages[] = $qrImageUrl;
 
-            $this->db->table('qrcodes')->insert($data);
-            $generatedIds[] = $this->db->insertID();
+                $data = [
+                    'tenant_id'     => $tenantId,
+                    'batch_id'      => $batchId,
+                    'qr_serial'     => $qrSerial,
+                    'qr_url'        => $qrUrl,
+                    'qr_image_url'  => $qrImageUrl,
+                    'scan_count'    => 0,
+                    'is_disabled'   => 0,
+                    'status'        => 0,
+                    'created_at'    => date('Y-m-d H:i:s'),
+                ];
 
-            if ($i % 10 === 0) {
-                usleep(10000);
+                $this->db->table('qrcodes')->insert($data);
+                $generatedIds[] = $this->db->insertID();
+
+                if ($i % 10 === 0) {
+                    usleep(10000);
+                }
             }
-        }
 
-        return $generatedIds;
+            $this->db->transComplete();
+
+            if ($this->db->transStatus() === false) {
+                foreach ($generatedImages as $imageUrl) {
+                    $filepath = FCPATH . ltrim($imageUrl, '/');
+                    @unlink($filepath);
+                }
+                throw new \RuntimeException('批量生成二维码失败');
+            }
+
+            return $generatedIds;
+
+        } catch (\Exception $e) {
+            $this->db->transRollback();
+            foreach ($generatedImages as $imageUrl) {
+                $filepath = FCPATH . ltrim($imageUrl, '/');
+                @unlink($filepath);
+            }
+            throw $e;
+        }
     }
 
     public function getQrcodeBySerial(string $serial): ?array
@@ -178,30 +197,56 @@ class QrcodeService
             ->getRowArray();
     }
 
-    public function updateScanInfo(int $qrId, string $ip): bool
+    public function updateScanInfo(int $qrId, string $ip): array
     {
+        $now = date('Y-m-d H:i:s');
+        
+        $result = $this->db->table('qrcodes')
+            ->set('scan_count', 'scan_count + 1', false)
+            ->set('last_scan_at', $now)
+            ->where('id', $qrId)
+            ->where('first_scan_at IS NULL')
+            ->update([
+                'first_scan_at' => $now,
+                'first_scan_ip' => $ip,
+            ]);
+
+        if ($result > 0) {
+            return [
+                'is_first_scan' => true,
+                'scan_count' => $this->getScanCount($qrId),
+                'first_scan_at' => $now,
+            ];
+        }
+
+        $this->db->table('qrcodes')
+            ->set('scan_count', 'scan_count + 1', false)
+            ->set('last_scan_at', $now)
+            ->where('id', $qrId)
+            ->update();
+
         $qrcode = $this->db->table('qrcodes')
+            ->select('scan_count, first_scan_at')
             ->where('id', $qrId)
             ->get()
             ->getRowArray();
 
-        if (!$qrcode) {
-            return false;
-        }
-
-        $updateData = [
-            'scan_count' => ($qrcode['scan_count'] ?? 0) + 1,
-            'last_scan_at' => date('Y-m-d H:i:s'),
+        return [
+            'is_first_scan' => false,
+            'scan_count' => $qrcode['scan_count'] ?? 0,
+            'first_scan_at' => $qrcode['first_scan_at'] ?? null,
         ];
+    }
 
-        if (empty($qrcode['first_scan_at'])) {
-            $updateData['first_scan_at'] = date('Y-m-d H:i:s');
-            $updateData['first_scan_ip'] = $ip;
-        }
-
-        return $this->db->table('qrcodes')
+    public function getScanCount(int $qrId): int
+    {
+        $qrcode = $this->db->table('qrcodes')
+            ->select('scan_count')
             ->where('id', $qrId)
-            ->update($updateData);
+            ->get()
+            ->getRowArray();
+
+        return $qrcode['scan_count'] ?? 0;
     }
 
     public function disableQrcode(int $id, int $tenantId): bool

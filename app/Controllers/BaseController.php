@@ -148,6 +148,11 @@ abstract class BaseController extends Controller
 
     protected function getUserAgent(): string
     {
-        return $this->request->getUserAgent()->getAgentString();
+        $userAgent = $this->request->getUserAgent();
+        if ($userAgent === null) {
+            return '';
+        }
+        $agentString = $userAgent->getAgentString();
+        return $agentString ?? '';
     }
 }

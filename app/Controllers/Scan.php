@@ -48,7 +48,7 @@ class Scan extends BaseController
 
     public function showVerifyPage(string $qrSerial)
     {
-        $baseUrl = base_url();
+        $baseUrl = htmlspecialchars(base_url(), ENT_QUOTES, 'UTF-8');
         
         $html = <<<HTML
 <!DOCTYPE html>
@@ -293,8 +293,9 @@ HTML;
         $scanIp = $this->request->getIPAddress();
         $riskResult = $this->riskService->detectFraud($qrcode['id'], $scanIp);
 
-        $isFirstScan = $qrcode['scan_count'] == 0;
-        $this->qrcodeService->updateScanInfo($qrcode['id'], $scanIp);
+        $updateResult = $this->qrcodeService->updateScanInfo($qrcode['id'], $scanIp);
+        $isFirstScan = $updateResult['is_first_scan'];
+        $currentScanCount = $updateResult['scan_count'];
 
         $scanLogData = [
             'qr_id'             => $qrcode['id'],
@@ -323,8 +324,8 @@ HTML;
             'inspectReport'   => $batch['inspect_report'] ? $this->formatUrl($batch['inspect_report']) : null,
             'scanInfo'        => [
                 'isFirstScan'    => $isFirstScan,
-                'totalScans'     => $qrcode['scan_count'] + 1,
-                'firstScanTime'  => $qrcode['first_scan_at'],
+                'totalScans'     => $currentScanCount,
+                'firstScanTime'  => $updateResult['first_scan_at'],
                 'riskLevel'      => $riskResult['riskLevel'],
                 'riskReason'     => $riskResult['riskReason'],
             ],
