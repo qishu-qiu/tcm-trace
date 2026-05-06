@@ -72,7 +72,7 @@ class CreateTraceRecords extends Migration
             ],
             'created_at' => [
                 'type'    => 'DATETIME',
-                'default' => 'CURRENT_TIMESTAMP',
+                'null'    => true,
             ],
         ]);
 

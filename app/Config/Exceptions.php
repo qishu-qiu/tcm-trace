@@ -24,6 +24,9 @@ class Exceptions extends BaseConfig
      */
     public bool $log = true;
 
+    public bool $display = true;      // 页面显示错误（开发环境设为true）
+
+
     /**
      * --------------------------------------------------------------------------
      * DO NOT LOG STATUS CODES

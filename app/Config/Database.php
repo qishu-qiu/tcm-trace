@@ -12,10 +12,10 @@ class Database extends Config
 
     public array $default = [
         'DSN'          => '',
-        'hostname'     => 'localhost',
-        'username'     => '',
-        'password'     => '',
-        'database'     => '',
+        'hostname'     => '127.0.0.1',
+        'username'     => 'root',
+        'password'     => '123456',
+        'database'     => 'tcm_trace',
         'DBDriver'     => 'MySQLi',
         'DBPrefix'     => '',
         'pConnect'     => false,
@@ -73,10 +73,10 @@ class Database extends Config
             $this->defaultGroup = 'tests';
         }
 
-        $this->default['hostname'] = env('database.default.hostname', 'localhost');
-        $this->default['username'] = env('database.default.username', 'root');
-        $this->default['password'] = env('database.default.password', '');
-        $this->default['database'] = env('database.default.database', 'tcm_trace');
-        $this->default['port']     = (int) env('database.default.port', 3306);
+        $this->default['hostname'] = env('database.default.hostname', $this->default['hostname']);
+        $this->default['username'] = env('database.default.username', $this->default['username']);
+        $this->default['password'] = env('database.default.password', $this->default['password']);
+        $this->default['database'] = env('database.default.database', $this->default['database']);
+        $this->default['port']     = (int) env('database.default.port', $this->default['port']);
     }
 }

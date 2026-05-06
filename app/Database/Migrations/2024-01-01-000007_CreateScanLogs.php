@@ -27,7 +27,7 @@ class CreateScanLogs extends Migration
             ],
             'scan_time' => [
                 'type'    => 'DATETIME',
-                'default' => 'CURRENT_TIMESTAMP',
+                'null'    => true,
             ],
             'scan_ip' => [
                 'type'       => 'VARCHAR',

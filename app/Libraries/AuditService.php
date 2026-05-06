@@ -31,7 +31,7 @@ class AuditService
         $request = service('request');
         
         $data = [
-            'tenant_id'      => $tenantId ?? $request->tenantId ?? null,
+            'tenant_id'      => $tenantId ?? $request->tenantId ?? 0,
             'actor_type'     => $userId ? 'user' : 'system',
             'actor_id'       => (string) ($userId ?? $request->userId ?? 0),
             'actor_name'     => $userName,
@@ -66,7 +66,7 @@ class AuditService
         $request = service('request');
         
         $data = [
-            'tenant_id'      => $tenantId ?? $request->tenantId ?? null,
+            'tenant_id'      => $tenantId ?? $request->tenantId ?? 0,
             'actor_type'     => $userId ? 'user' : 'system',
             'actor_id'       => (string) ($userId ?? $request->userId ?? 0),
             'actor_name'     => $userName,

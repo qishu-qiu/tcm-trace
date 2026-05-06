@@ -22,7 +22,6 @@ class CreateTenants extends Migration
             'slug' => [
                 'type'       => 'VARCHAR',
                 'constraint' => 50,
-                'unique'     => true,
             ],
             'license_no' => [
                 'type'       => 'VARCHAR',
@@ -80,11 +79,11 @@ class CreateTenants extends Migration
             ],
             'created_at' => [
                 'type'    => 'DATETIME',
-                'default' => 'CURRENT_TIMESTAMP',
+                'null'    => true,
             ],
             'updated_at' => [
                 'type'    => 'DATETIME',
-                'default' => 'CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
+                'null'    => true,
             ],
         ]);
 

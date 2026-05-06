@@ -28,7 +28,6 @@ class CreateQrcodes extends Migration
             'qr_serial' => [
                 'type'       => 'VARCHAR',
                 'constraint' => 32,
-                'unique'     => true,
             ],
             'qr_url' => [
                 'type'       => 'VARCHAR',
@@ -75,7 +74,7 @@ class CreateQrcodes extends Migration
             ],
             'created_at' => [
                 'type'    => 'DATETIME',
-                'default' => 'CURRENT_TIMESTAMP',
+                'null'    => true,
             ],
         ]);
 

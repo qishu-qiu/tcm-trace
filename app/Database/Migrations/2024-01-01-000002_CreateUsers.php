@@ -64,11 +64,11 @@ class CreateUsers extends Migration
             ],
             'created_at' => [
                 'type'    => 'DATETIME',
-                'default' => 'CURRENT_TIMESTAMP',
+                'null'    => true,
             ],
             'updated_at' => [
                 'type'    => 'DATETIME',
-                'default' => 'CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
+                'null'    => true,
             ],
         ]);
 

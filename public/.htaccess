@@ -1,71 +1,44 @@
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteBase /
+# CodeIgniter 4 官方 .htaccess (Apache 2.4+)
+RewriteEngine On
+RewriteBase /
 
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ index.php/$1 [L]
-</IfModule>
+# 禁止访问敏感文件和目录
+RewriteRule ^(app|writable|vendor)/.*$ index.php [L,R=403]
+RewriteRule ^\.env$ index.php [L,R=403]
+RewriteRule ^.*\.log$ index.php [L,R=403]
 
+# 标准CI4 URL重写
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?/$1 [L,QSA]
+
+# 静态资源缓存
 <IfModule mod_expires.c>
     ExpiresActive On
     ExpiresByType image/jpeg "access plus 1 week"
     ExpiresByType image/png "access plus 1 week"
     ExpiresByType image/gif "access plus 1 week"
     ExpiresByType image/webp "access plus 1 week"
-    ExpiresByType application/pdf "access plus 1 month"
     ExpiresByType text/css "access plus 1 week"
     ExpiresByType application/javascript "access plus 1 week"
 </IfModule>
 
+# 安全头
 <IfModule mod_headers.c>
-    Header set Cache-Control "max-age=604800, public" "expr=%{REQUEST_URI} =~ m#^/uploads/qrcodes/#"
     Header set X-Frame-Options "SAMEORIGIN"
     Header set X-Content-Type-Options "nosniff"
     Header set X-XSS-Protection "1; mode=block"
     Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https:; font-src 'self' https://unpkg.com;"
 </IfModule>
 
+# Gzip压缩
 <IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/plain
-    AddOutputFilterByType DEFLATE text/html
-    AddOutputFilterByType DEFLATE text/xml
-    AddOutputFilterByType DEFLATE text/css
-    AddOutputFilterByType DEFLATE application/xml
-    AddOutputFilterByType DEFLATE application/xhtml+xml
-    AddOutputFilterByType DEFLATE application/rss+xml
-    AddOutputFilterByType DEFLATE application/javascript
-    AddOutputFilterByType DEFLATE application/x-javascript
-    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json
 </IfModule>
 
-<FilesMatch "\.(env|log)$">
-    Order Allow,Deny
-    Deny from all
-</FilesMatch>
-
-<FilesMatch "\.(php)$">
-    Order Allow,Deny
-    Allow from all
-</FilesMatch>
-
-<Directory "writable/">
-    Order Allow,Deny
-    Deny from all
-</Directory>
-
-<Directory "app/">
-    Order Allow,Deny
-    Deny from all
-</Directory>
-
-<Directory "vendor/">
-    Order Allow,Deny
-    Deny from all
-</Directory>
-
+# 开发环境：开启PHP错误显示（生产环境注释掉这3行）
 <IfModule mod_php8.c>
-    php_flag display_errors Off
+    php_flag display_errors On
     php_flag log_errors On
-    php_value error_reporting E_ALL & ~E_DEPRECATED & ~E_STRICT
+    php_value error_reporting E_ALL
 </IfModule>
